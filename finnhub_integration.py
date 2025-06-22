@@ -25,6 +25,7 @@ try:
     import boto3
     from botocore.client import Config
     import io
+    from api_rotation import finnhub_rest_manager, finnhub_websocket_manager
 
 except ImportError as e:
     print(f"Error importing required packages: {e}")
@@ -32,15 +33,15 @@ except ImportError as e:
     print("pip install finnhub-python boto3")
     sys.exit(1)
 
-# --- Your API Keys ---
-# IMPORTANT: Replace with your actual Finnhub API Key
-FINNHUB_API_KEY = "d13gq5pr01qs7glhghj0d13gq5pr01qs7glhghjg" # <<< REPLACE THIS PART ONLY
-
 # --- MinIO Connection Details (ensure these match your MinIO setup) ---
-# IMPORTANT: Replace with your actual MinIO Access Key and Secret Key if different from 'minioadmin'
-MINIO_ENDPOINT = 'http://localhost:9000'
-MINIO_ACCESS_KEY = 'minioadmin' # <<< REPLACE THIS PART ONLY
-MINIO_SECRET_KEY = 'minioadmin' # <<< REPLACE THIS PART ONLY
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", 'http://localhost:9000')
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+
+# Basic validation for essential keys
+if not MINIO_ACCESS_KEY or not MINIO_SECRET_KEY:
+    print("Error: MINIO_ACCESS_KEY or MINIO_SECRET_KEY environment variables not set. Please set them.")
+    sys.exit(1)
 
 # Initialize MinIO S3 client
 try:
@@ -84,22 +85,22 @@ def save_to_minio(bucket_name, object_name, data_bytes, content_type='applicatio
 # IMPORTANT: Finnhub's free tier WebSocket is *very* limited (50 messages per day sent *by you*).
 # This example will likely hit that limit quickly from the initial subscription.
 def run_finnhub_websocket():
-    print("\n--- Initiating Finnhub WebSocket Stream (Real-time Trades) ---")
-    ws_url = f"wss://ws.finnhub.io?token={FINNHUB_API_KEY}"
+    api_key = finnhub_websocket_manager.get_key("websocket")
+    ws_url = f"wss://ws.finnhub.io?token={api_key}"
     ws_app = None
 
     def on_message(ws_app, message):
         try:
             msg = json.loads(message)
             timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-            
+
             if msg.get('type') == 'trade' and msg.get('data'):
                 for trade in msg['data']:
                     symbol = trade.get('s', 'UNKNOWN_SYMBOL').upper()
                     price = trade.get('p', 'N/A')
                     volume = trade.get('v', 'N/A')
                     print(f"Trade: {symbol} - Price: {price}, Volume: {volume}")
-                    
+
                     object_name = f"finnhub_websocket/{symbol}/{datetime.now().strftime('%Y%m%d')}/trade_{timestamp_str}.json"
                     save_to_minio("raw-tick-data", object_name, json.dumps(trade).encode('utf-8'))
             elif msg.get('type') == 'ping':
@@ -131,7 +132,7 @@ def run_finnhub_websocket():
             on_close=on_close,
             on_open=on_open
         )
-        
+
         # Run in a separate thread with timeout
         ws_thread = threading.Thread(target=ws_app.run_forever, kwargs={
             'ping_interval': 15,
@@ -139,15 +140,15 @@ def run_finnhub_websocket():
         })
         ws_thread.daemon = True
         ws_thread.start()
-        
+
         # Keep main thread alive for demo period
         time.sleep(20)
-        
+
         # Cleanup
         if ws_app:
             ws_app.close()
             print("WebSocket connection closed cleanly")
-            
+
     except Exception as e:
         print(f"WebSocket setup error: {e}")
         if ws_app:
@@ -156,8 +157,10 @@ def run_finnhub_websocket():
 # --- Finnhub Fundamental Data (REST API) Example ---
 # This demonstrates how to make a single API call to get fundamental data.
 def get_finnhub_fundamental():
+    api_key = finnhub_rest_manager.get_key("rest")
+    finnhub_client = finnhub.Client(api_key=api_key)
+
     print("\n--- Fetching Finnhub Fundamental Data (REST API) ---")
-    finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
 
     # Get company basic financials for Apple (AAPL).
     # This is a REST API call and consumes your daily REST API limits.
@@ -184,7 +187,7 @@ def get_finnhub_fundamental():
     except Exception as e:
         print(f"Error fetching fundamental data from Finnhub: {e}")
         if "Limit exceeded" in str(e) or "invalid token" in str(e):
-            print("ACTION REQUIRED: Check your Finnhub API key and daily REST API limits. You might have hit them.")
+            print("ACTION REQUIRED: Check your Finnhub API key and daily REST API limits. You might have them.")
         else:
             print(f"An unexpected error occurred: {e}")
 
@@ -192,10 +195,10 @@ def get_finnhub_fundamental():
 # This is where the script starts running.
 if __name__ == "__main__":
     print("🚀 Starting Finnhub integration...")
-    
+
     run_finnhub_websocket()
-    
+
     print("\n📊 Running Fundamental Data example...")
     get_finnhub_fundamental()
-    
+
     print("\n✨ Finnhub integration script finished.")
