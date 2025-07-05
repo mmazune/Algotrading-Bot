@@ -17,7 +17,7 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 
 # Define bucket names (using config.py values now)
-RAW_BUCKET_NAME = 'raw-financial-data'  # Hardcoded to match main_data_collector.py
+RAW_BUCKET_NAME = RAW_DATA_BUCKET  # Use the value from config.py
 PROCESSED_BUCKET_NAME = PROCESSED_DATA_BUCKET # From config.py
 
 # Basic validation for essential MinIO keys

@@ -89,7 +89,7 @@ def save_to_minio(bucket_name, object_name, data_bytes, content_type='applicatio
             ContentType=content_type
         )
         print(f"Successfully saved {object_name} to MinIO bucket '{bucket_name}'.")
-    except boto3.exceptions.ClientError as e:
+    except ClientError as e:
         print(f"MinIO Client Error for {object_name}: {e}")
         if e.response['Error']['Code'] == 'NoSuchBucket':
             print(f"ACTION REQUIRED: Bucket '{bucket_name}' does not exist. Please create it in the MinIO console ({MINIO_ENDPOINT.replace('9000', '9001')}).")
@@ -183,7 +183,7 @@ def fetch_and_store_data():
                 for col in ['open', 'high', 'low', 'close', 'volume']:
                     df_ts[col] = pd.to_numeric(df_ts[col], errors='coerce')
 
-                # --- Save each day's row as a separate raw parquet file in raw-financial-data bucket ---
+                # --- Save each day's row as a separate raw parquet file in market-data bucket ---
                 for idx, row in df_ts.iterrows():
                     single_row_df = pd.DataFrame([row])
                     parquet_buffer = BytesIO()
@@ -194,8 +194,8 @@ def fetch_and_store_data():
                     row_date = row['datetime'] if pd.notnull(row['datetime']) else current_datetime
                     date_str = pd.to_datetime(row_date).strftime('%Y-%m-%d')
                     object_name = f"twelvedata_historical/{symbol}/raw_{date_str}.parquet"
-                    save_to_minio('raw-financial-data', object_name, parquet_bytes, 'application/octet-stream')
-                print(f"Saved {len(df_ts)} raw daily parquet files for {symbol} in raw-financial-data bucket.")
+                    save_to_minio(RAW_DATA_BUCKET, object_name, parquet_bytes, 'application/octet-stream')
+                print(f"Saved {len(df_ts)} raw daily parquet files for {symbol} in {RAW_DATA_BUCKET} bucket.")
             else:
                 print(f"No valid Twelve Data historical data for {symbol}. Response: {td_timeseries_data}")
         except requests.exceptions.RequestException as e:
