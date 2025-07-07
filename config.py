@@ -21,7 +21,7 @@ if missing:
 
 # MinIO Configuration
 MINIO_CONFIG = {
-    'endpoint': 'localhost:9000',
+    'endpoint': '159.223.139.171:9000',  # DigitalOcean Droplet IP and port
     'access_key': 'minioadmin',  # Default MinIO access key
     'secret_key': 'minioadmin',  # Default MinIO secret key
     'secure': False
