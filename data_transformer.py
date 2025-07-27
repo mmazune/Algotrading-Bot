@@ -249,6 +249,80 @@ def process_twelvedata_historical(symbol):
         print(f"Error processing Twelve Data historical for {symbol}: {e}")
         return None
 
+def process_finnhub_historical(symbol):
+    print(f"  Processing Finnhub historical for {symbol}...")
+    try:
+        # Get all raw historical files for this symbol
+        raw_prefix = f"finnhub_historical/{symbol}/"
+        
+        all_dfs = []
+        try:
+            paginator = s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=RAW_BUCKET_NAME, Prefix=raw_prefix)
+
+            file_count = 0
+            for page in pages:
+                if "Contents" in page:
+                    for obj in page['Contents']:
+                        if obj['Key'].endswith('.parquet'):
+                            try:
+                                file_obj = s3_client.get_object(Bucket=RAW_BUCKET_NAME, Key=obj['Key'])
+                                parquet_data = file_obj['Body'].read()
+                                temp_df = pq.read_table(BytesIO(parquet_data)).to_pandas()
+                                all_dfs.append(temp_df)
+                                file_count += 1
+                            except Exception as file_error:
+                                print(f"    Error reading file {obj['Key']}: {file_error}")
+                                continue
+            
+            print(f"    Found {file_count} raw Finnhub historical files for {symbol}")
+            
+        except Exception as list_error:
+            print(f"    Error listing Finnhub historical files for {symbol}: {list_error}")
+            return None
+
+        if not all_dfs:
+            print(f"    No valid data found in Finnhub historical files for {symbol}")
+            return None
+
+        # Combine all dataframes
+        df = pd.concat(all_dfs, ignore_index=True)
+
+        # Basic cleaning and processing (similar to Twelve Data)
+        df = df.dropna(subset=['datetime', 'close'])  # Finnhub uses 'datetime' not 'date'
+        
+        # Ensure datetime column is properly formatted
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df = df.sort_values('datetime').reset_index(drop=True)
+        
+        # Set datetime as index
+        df.set_index('datetime', inplace=True)
+        
+        # Add symbol column if not present
+        if 'symbol' not in df.columns:
+            df['symbol'] = symbol
+
+        # Calculate daily returns
+        df['daily_return'] = df['close'].pct_change() * 100
+
+        # Remove any duplicate dates (keep last)
+        df = df[~df.index.duplicated(keep='last')]
+
+        print(f"    Processed {len(df)} records for {symbol} from {df.index.min()} to {df.index.max()}")
+
+        # Select relevant columns for processed output
+        processed_df = df[['open', 'high', 'low', 'close', 'volume', 'daily_return', 'symbol']].copy()
+
+        # Determine the output path for processed data
+        processed_object_name = f"finnhub_historical/{symbol}/processed_daily_data_all.parquet"
+
+        save_dataframe_to_minio_parquet(processed_df, PROCESSED_BUCKET_NAME, processed_object_name)
+        print(f"    Processed Finnhub historical for {symbol} saved.")
+        return processed_df
+    except Exception as e:
+        print(f"Error processing Finnhub historical for {symbol}: {e}")
+        return None
+
 # --- Main Data Transformation Orchestration ---
 def main():
     print("\nStarting data transformation and processing")
@@ -270,8 +344,9 @@ def main():
         return
 
     for symbol in symbols:
-        # Process both data types for each symbol
+        # Process all data types for each symbol
         process_finnhub_quotes(symbol)
+        process_finnhub_historical(symbol)
         process_twelvedata_historical(symbol)
     
     print("\nData transformation process completed")

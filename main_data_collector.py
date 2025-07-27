@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 # Using specific bucket names from config.py
 from config import RAW_DATA_BUCKET, PROCESSED_DATA_BUCKET # Ensure these are defined in your config.py
@@ -133,10 +133,9 @@ def fetch_and_store_data():
         timestamp_for_filename = current_datetime.strftime('%H%M%S_%f')[:-3] # HHMMSS_milliseconds
         date_path_for_storage = current_datetime.strftime("%Y/%m/%d") # For S3 partitioning
 
-        # --- Fetch and Store Finnhub Quote ---
+        # --- Fetch and Store Finnhub Quote (Real-time) ---
         try:
-            print(f"Fetching Finnhub quote for {symbol}...")
-            # Use the finnhub_rest_manager to get an API key
+            print(f"Fetching Finnhub real-time quote for {symbol}...")
             finnhub_client_with_key = finnhub.Client(api_key=finnhub_rest_manager.get_key("rest"))
             quote_data = finnhub_client_with_key.quote(symbol)
             
@@ -155,21 +154,101 @@ def fetch_and_store_data():
                 object_name = f"finnhub_quotes/{symbol}/{date_path_for_storage}/quote_{timestamp_for_filename}.parquet"
                 save_to_minio(RAW_DATA_BUCKET, object_name, parquet_bytes, 'application/octet-stream')
             else:
-                print(f"No valid Finnhub quote data for {symbol}.")
+                print(f"No valid Finnhub real-time quote data for {symbol}.")
         except Exception as e:
-            print(f"Error fetching/storing Finnhub quote for {symbol}: {e}")
+            print(f"Error fetching/storing Finnhub real-time quote for {symbol}: {e}")
             # Specific error handling for API limits/invalid tokens from finnhub_rest_manager or direct API
             if "Limit exceeded" in str(e) or "invalid token" in str(e) or "429" in str(e):
                 print("ACTION REQUIRED: Check your Finnhub API key and daily REST API limits. You might have hit them.")
             
         time.sleep(1) # Small delay to respect Finnhub rate limits
 
+        # --- NEW: Fetch and Store Finnhub Historical (Daily Candles) ---
+        try:
+            print(f"Fetching Finnhub historical (daily candles) for {symbol}...")
+            
+            # Calculate date range for API call (5 years of historical data)
+            end_timestamp = int(time.time()) # Current Unix timestamp
+            start_timestamp = int((datetime.now() - timedelta(days=5*365)).timestamp()) # 5 years ago
+            
+            print(f"  Requesting historical data from {datetime.fromtimestamp(start_timestamp).strftime('%Y-%m-%d')} to {datetime.fromtimestamp(end_timestamp).strftime('%Y-%m-%d')}")
+
+            finnhub_client_with_key = finnhub.Client(api_key=finnhub_rest_manager.get_key("rest"))
+            
+            # Finnhub API for historical candles: /stock/candle
+            # resolution='D' for daily, 'W' for weekly, 'M' for monthly
+            # from and to are Unix timestamps
+            candle_data = finnhub_client_with_key.stock_candles(symbol, 'D', start_timestamp, end_timestamp)
+
+            if candle_data and candle_data.get('s') == 'ok' and 't' in candle_data: # 's' for status, 't' for timestamps
+                # 't' (timestamp), 'o' (open), 'h' (high), 'l' (low), 'c' (close), 'v' (volume)
+                df_candles = pd.DataFrame({
+                    'datetime': [datetime.fromtimestamp(ts) for ts in candle_data['t']],
+                    'open': candle_data['o'],
+                    'high': candle_data['h'],
+                    'low': candle_data['l'],
+                    'close': candle_data['c'],
+                    'volume': candle_data['v']
+                })
+                df_candles['symbol'] = symbol
+                df_candles['fetch_timestamp'] = current_datetime # Timestamp of when this historical batch was fetched
+
+                # Sort by datetime to ensure chronological order
+                df_candles = df_candles.sort_values('datetime').reset_index(drop=True)
+                
+                # Print date range of fetched data for verification
+                if len(df_candles) > 0:
+                    first_date = df_candles['datetime'].min().strftime('%Y-%m-%d')
+                    last_date = df_candles['datetime'].max().strftime('%Y-%m-%d')
+                    print(f"  Fetched {len(df_candles)} historical records from {first_date} to {last_date}")
+
+                    # --- Save each day's row as a separate raw parquet file in market-data bucket ---
+                    # Store historical Finnhub data under 'finnhub_historical' prefix to separate from real-time quotes
+                    for idx, row in df_candles.iterrows():
+                        single_row_df = pd.DataFrame([row])
+                        parquet_buffer = BytesIO()
+                        table = pa.Table.from_pandas(single_row_df)
+                        pq.write_table(table, parquet_buffer)
+                        parquet_bytes = parquet_buffer.getvalue()
+                        
+                        # Use the date from the row for the filename
+                        row_date = row['datetime'] if pd.notnull(row['datetime']) else current_datetime
+                        date_str = pd.to_datetime(row_date).strftime('%Y-%m-%d')
+                        # Store historical Finnhub data under 'finnhub_historical' prefix
+                        object_name = f"finnhub_historical/{symbol}/raw_{date_str}.parquet"
+                        save_to_minio(RAW_DATA_BUCKET, object_name, parquet_bytes, 'application/octet-stream')
+                    print(f"  Saved {len(df_candles)} raw daily historical parquet files for {symbol} in {RAW_DATA_BUCKET} bucket.")
+                else:
+                    print("  Warning: Finnhub historical API returned no data for the requested period.")
+            else:
+                print(f"No valid Finnhub historical data for {symbol}. Response status: {candle_data.get('s') if candle_data else 'None'}")
+                if candle_data and 's' in candle_data and candle_data['s'] == 'no_data':
+                    print("  This may be normal for recently listed stocks or during market holidays.")
+        except Exception as e:
+            print(f"Error fetching/storing Finnhub historical data for {symbol}: {e}")
+            if "Limit exceeded" in str(e) or "invalid token" in str(e) or "429" in str(e):
+                print("ACTION REQUIRED: Check your Finnhub API key and daily HISTORICAL API limits. You might have hit them.")
+        
+        time.sleep(1) # Small delay to respect Finnhub rate limits
+
         # --- Fetch and Store Twelve Data Historical ---
         try:
             print(f"Fetching Twelve Data historical (1day) for {symbol}...")
+            
+            # Calculate date range for API call
+            end_date = datetime.now().date()  # Today's date
+            start_date = end_date - timedelta(days=1825)  # 5 years back (365 * 5)
+            
+            # Format dates for Twelve Data API (YYYY-MM-DD)
+            start_date_str = start_date.strftime('%Y-%m-%d')
+            end_date_str = end_date.strftime('%Y-%m-%d')
+            
+            print(f"Requesting data from {start_date_str} to {end_date_str}")
+            
             td_timeseries_url = (
                 f"{twelvedata_base_url}/time_series?"
-                f"symbol={symbol}&interval=1day&outputsize=730&apikey={twelvedata_manager.get_key()}"
+                f"symbol={symbol}&interval=1day&start_date={start_date_str}&end_date={end_date_str}&"
+                f"apikey={twelvedata_manager.get_key()}"
             )
             td_timeseries_response = requests.get(td_timeseries_url)
             td_timeseries_response.raise_for_status()
@@ -182,6 +261,15 @@ def fetch_and_store_data():
                 df_ts['datetime'] = pd.to_datetime(df_ts['datetime'], errors='coerce')
                 for col in ['open', 'high', 'low', 'close', 'volume']:
                     df_ts[col] = pd.to_numeric(df_ts[col], errors='coerce')
+
+                # Sort by datetime to ensure chronological order
+                df_ts = df_ts.sort_values('datetime').reset_index(drop=True)
+                
+                # Print date range of fetched data for verification
+                if len(df_ts) > 0:
+                    first_date = df_ts['datetime'].min().strftime('%Y-%m-%d')
+                    last_date = df_ts['datetime'].max().strftime('%Y-%m-%d')
+                    print(f"Fetched {len(df_ts)} records from {first_date} to {last_date}")
 
                 # --- Save each day's row as a separate raw parquet file in market-data bucket ---
                 for idx, row in df_ts.iterrows():
@@ -198,6 +286,9 @@ def fetch_and_store_data():
                 print(f"Saved {len(df_ts)} raw daily parquet files for {symbol} in {RAW_DATA_BUCKET} bucket.")
             else:
                 print(f"No valid Twelve Data historical data for {symbol}. Response: {td_timeseries_data}")
+                # If the response contains an error message, print it for debugging
+                if 'message' in td_timeseries_data:
+                    print(f"API Error Message: {td_timeseries_data['message']}")
         except requests.exceptions.RequestException as e:
             print(f"Error fetching Twelve Data historical for {symbol}: {e}")
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
@@ -211,6 +302,85 @@ def fetch_and_store_data():
 
     print("Data fetching and storage complete.")
 
+def repurpose_twelvedata_as_finnhub():
+    """
+    Repurpose Twelve Data historical data as Finnhub historical data.
+    This workaround addresses the Finnhub API limitations by copying 
+    Twelve Data historical data to finnhub_historical paths.
+    """
+    print("\n--- Starting Twelve Data to Finnhub Historical Repurposing ---")
+    
+    try:
+        # Load symbols
+        with open('symbols.txt', 'r') as f:
+            symbols = [line.strip() for line in f.readlines()]
+        
+        print(f"Repurposing historical data for {len(symbols)} symbols...")
+        
+        for symbol in symbols:
+            print(f"\nRepurposing historical data for {symbol}...")
+            
+            try:
+                # List all Twelve Data historical files for this symbol
+                response = s3_client.list_objects_v2(
+                    Bucket=RAW_DATA_BUCKET,
+                    Prefix=f'twelvedata_historical/{symbol}/'
+                )
+                
+                if 'Contents' not in response:
+                    print(f"  No Twelve Data historical files found for {symbol}")
+                    continue
+                
+                files_copied = 0
+                for obj in response['Contents']:
+                    source_key = obj['Key']
+                    
+                    # Skip if not a parquet file
+                    if not source_key.endswith('.parquet'):
+                        continue
+                    
+                    # Extract date from filename (e.g., raw_2020-07-27.parquet)
+                    filename = source_key.split('/')[-1]
+                    if not filename.startswith('raw_'):
+                        continue
+                    
+                    date_str = filename.replace('raw_', '').replace('.parquet', '')
+                    
+                    # Create corresponding Finnhub historical path
+                    # Convert YYYY-MM-DD to Year/Month/Day structure
+                    try:
+                        year, month, day = date_str.split('-')
+                        finnhub_key = f'finnhub_historical/{symbol}/{year}/{month}/{day}/candles_{date_str.replace("-", "")}.parquet'
+                        
+                        # Copy the object
+                        copy_source = {'Bucket': RAW_DATA_BUCKET, 'Key': source_key}
+                        s3_client.copy_object(
+                            CopySource=copy_source,
+                            Bucket=RAW_DATA_BUCKET,
+                            Key=finnhub_key
+                        )
+                        files_copied += 1
+                        
+                        if files_copied % 100 == 0:  # Progress update every 100 files
+                            print(f"  Copied {files_copied} files for {symbol}...")
+                    
+                    except Exception as date_error:
+                        print(f"  Error processing date {date_str}: {date_error}")
+                        continue
+                
+                print(f"  Successfully repurposed {files_copied} historical files for {symbol}")
+                
+            except Exception as symbol_error:
+                print(f"  Error repurposing data for {symbol}: {symbol_error}")
+                continue
+        
+        print("\n✅ Twelve Data to Finnhub historical repurposing completed!")
+        print("The notebook can now access multi-year historical data via Finnhub historical paths.")
+        
+    except Exception as e:
+        print(f"❌ Error during repurposing process: {e}")
+
 # --- Entry Point for Script Execution ---
 if __name__ == "__main__":
     fetch_and_store_data()
+    repurpose_twelvedata_as_finnhub()

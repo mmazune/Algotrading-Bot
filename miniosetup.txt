@@ -1,0 +1,8 @@
+export MINIO_ENDPOINT="http://159.223.139.171:9000"
+export MINIO_ACCESS_KEY="minioadmin"
+export MINIO_SECRET_KEY="minioadmin"
+
+# To ensure they are sourced in future sessions (if not already working automatically)
+echo 'export MINIO_ENDPOINT="http://159.223.139.171:9000"' >> ~/.bashrc
+echo 'export MINIO_ACCESS_KEY="minioadmin"' >> ~/.bashrcecho 'export MINIO_SECRET_KEY="minioadmin"' >> ~/.bashrc
+source ~/.bashrc
