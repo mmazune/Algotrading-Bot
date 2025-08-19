@@ -51,17 +51,36 @@ jobs:
         pip install -r requirements.txt
         pip install pandas ta
     
-    - name: Run data collection and transformation script
-      # your_data_script.py is a placeholder for the actual script
-      # The script should handle fetching, transforming, and saving data to a file within the repository
-      # It should print clear success/failure messages
-      run: python automated_data_pipeline.py
+    - name: Run enhanced data collection with API rotation
+      # Enhanced script with automatic API key rotation for better rate limit management
+      run: python automated_data_pipeline_with_rotation.py
       env:
-        STOCK_SYMBOL: ${{ github.event.inputs.symbol_to_fetch }}
-        DATA_FETCH_INTERVAL: ${{ github.event.inputs.interval_for_data }}
-        # Store sensitive API keys as GitHub Secrets and access them like:
+        # Pipeline parameters
+        STOCK_SYMBOL: ${{ github.event.inputs.symbol_to_fetch || 'AAPL' }}
+        DATA_FETCH_INTERVAL: ${{ github.event.inputs.interval_for_data || '1day' }}
+        
+        # Single API keys (backward compatibility)
         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        
+        # Multiple API keys for automatic rotation (recommended)
+        FINNHUB_API_KEY_1: ${{ secrets.FINNHUB_API_KEY_1 }}
+        FINNHUB_API_KEY_2: ${{ secrets.FINNHUB_API_KEY_2 }}
+        FINNHUB_API_KEY_3: ${{ secrets.FINNHUB_API_KEY_3 }}
+        FINNHUB_API_KEY_4: ${{ secrets.FINNHUB_API_KEY_4 }}
+        FINNHUB_API_KEY_5: ${{ secrets.FINNHUB_API_KEY_5 }}
+        FINNHUB_API_KEY_6: ${{ secrets.FINNHUB_API_KEY_6 }}
+        FINNHUB_API_KEY_7: ${{ secrets.FINNHUB_API_KEY_7 }}
+        
+        TWELVEDATA_API_KEY_1: ${{ secrets.TWELVEDATA_API_KEY_1 }}
+        TWELVEDATA_API_KEY_2: ${{ secrets.TWELVEDATA_API_KEY_2 }}
+        TWELVEDATA_API_KEY_3: ${{ secrets.TWELVEDATA_API_KEY_3 }}
+        TWELVEDATA_API_KEY_4: ${{ secrets.TWELVEDATA_API_KEY_4 }}
+        TWELVEDATA_API_KEY_5: ${{ secrets.TWELVEDATA_API_KEY_5 }}
+        TWELVEDATA_API_KEY_6: ${{ secrets.TWELVEDATA_API_KEY_6 }}
+        TWELVEDATA_API_KEY_7: ${{ secrets.TWELVEDATA_API_KEY_7 }}
+        
+        # Storage credentials (optional)
         MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
         MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
         MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
