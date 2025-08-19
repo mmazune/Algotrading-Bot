@@ -15,6 +15,15 @@ from datetime import datetime, timedelta
 from collections import deque, defaultdict
 import threading
 
+# Install and import technical analysis library
+try:
+    import ta
+except ImportError:
+    print("Installing technical analysis library...")
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pip", "install", "ta>=0.10.2"], check=True)
+    import ta
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
