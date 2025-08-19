@@ -1,0 +1,89 @@
+name: Automated Financial Data Pipeline
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ main ]
+  
+  # Allow manual triggering with custom inputs
+  workflow_dispatch:
+    inputs:
+      symbol_to_fetch:
+        description: 'Stock symbol to fetch (e.g., AAPL, MSFT)'
+        required: true
+        default: 'AAPL'
+        type: string
+      interval_for_data:
+        description: 'Data interval (e.g., 1day, 1week)'
+        required: false
+        default: '1day'
+        type: choice
+        options:
+          - 1min
+          - 5min
+          - 15min
+          - 30min
+          - 1hour
+          - 1day
+          - 1week
+  
+  # Schedule to run daily at midnight UTC
+  # Note: GitHub Actions schedule runs are fixed, not dynamically determined by the workflow's 'worth'
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  run_data_pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install required Python packages
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pandas ta
+    
+    - name: Run data collection and transformation script
+      # your_data_script.py is a placeholder for the actual script
+      # The script should handle fetching, transforming, and saving data to a file within the repository
+      # It should print clear success/failure messages
+      run: python automated_data_pipeline.py
+      env:
+        STOCK_SYMBOL: ${{ github.event.inputs.symbol_to_fetch }}
+        DATA_FETCH_INTERVAL: ${{ github.event.inputs.interval_for_data }}
+        # Store sensitive API keys as GitHub Secrets and access them like:
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+        MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+        MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+    
+    - name: Verify data file existence and content
+      if: success()
+      run: |
+        # Assuming the Python script saves data to transformed_financial_data.csv
+        # Change this filename if your script uses a different output file
+        ls -lh transformed_financial_data.csv
+        [ -s transformed_financial_data.csv ]
+      # This step provides basic verification and could be expanded for more rigorous checks
+      # (e.g., checking data rows, specific column presence)
+    
+    - name: Commit and push transformed data (optional)
+      if: success()
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+        git add transformed_financial_data.csv
+        git commit -m "Automated: Update transformed financial data" || echo "No changes to commit"
+        git push || echo "No new commits to push"
+      # This step commits data directly to the repo and should be used cautiously
+      # for large or frequently changing datasets. Consider external storage solutions
+      # (like cloud storage) as alternatives for such cases.
