@@ -1,0 +1,44 @@
+portfolio:
+  symbols: ["EURUSD", "GBPUSD", "XAUUSD"]
+  interval: "5m"
+  source: "auto"
+  venue: "OANDA"
+  spreads:
+    EURUSD: 0.6
+    GBPUSD: 0.9
+    XAUUSD: 2.5
+  warmup_days: 3
+  status_every_s: 90
+  risk:
+    global_daily_stop_r: -5.0
+    max_open_positions: 2
+    per_strategy_daily_trades: 3
+    per_strategy_daily_stop_r: -2.0
+
+strategies:
+  - name: "lsg"
+    # LIVE-only overrides; tuned defaults remain for backtests/tuning
+    params:
+      bos_buffer_pips: 0.3
+      reentry_window_m: 45
+    windows:
+      - start: "07:00"
+        end: "10:00"
+  
+  - name: "orb"
+    params:
+      retest: false
+      filter_min_or_pips: 2
+    windows:
+      - start: "07:05"
+        end: "10:00"
+  
+  - name: "arls"
+    params:
+      sweep_pips: 3
+      atr_multiplier: 0.08
+      reentry_window_m: 60
+      min_range_pips: 3
+    windows:
+      - start: "07:00"
+        end: "10:00"
