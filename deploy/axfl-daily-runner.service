@@ -1,0 +1,21 @@
+[Unit]
+Description=AXFL Daily Runner (London+NY)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/Algotrading-Bot
+EnvironmentFile=/etc/axfl/axfl.env
+ExecStart=/home/%i/Algotrading-Bot/scripts/run_daily_runner.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

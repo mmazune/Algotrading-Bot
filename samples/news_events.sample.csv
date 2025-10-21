@@ -1,0 +1,21 @@
+date,time_utc,currencies,impact,title
+2025-10-20,12:30,USD,high,Core Retail Sales (MoM)
+2025-10-20,14:00,USD,high,Existing Home Sales
+2025-10-21,07:00,GBP,high,CPI (YoY)
+2025-10-21,12:30,USD,high,Jobless Claims
+2025-10-21,13:45,EUR,high,ECB Interest Rate Decision
+2025-10-22,07:00,EUR,high,Manufacturing PMI
+2025-10-22,12:30,USD,high,GDP (QoQ)
+2025-10-23,07:00,GBP,high,Retail Sales (MoM)
+2025-10-23,12:30,USD,high,Core Durable Goods Orders
+2025-10-24,12:30,USD,high,Non-Farm Payrolls
+2025-10-24,12:30,USD,high,Unemployment Rate
+2025-10-27,13:00,USD,medium,CB Consumer Confidence
+2025-10-28,07:00,EUR,high,German CPI (MoM)
+2025-10-28,12:30,USD,high,PCE Price Index
+2025-10-29,12:15,USD,high,ADP Employment Change
+2025-10-29,14:00,USD,high,FOMC Meeting Minutes
+2025-10-30,07:00,GBP,high,GDP (QoQ)
+2025-10-30,12:30,USD,high,Employment Cost Index
+2025-10-31,07:00,EUR,high,CPI (YoY)
+2025-10-31,12:30,USD,high,Core PCE Price Index

@@ -42,9 +42,43 @@ def load_sessions_yaml(path: str) -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def normalize_schedule(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def pick_profile(cfg: Dict[str, Any], profile: str = None) -> Dict[str, Any]:
+    """
+    Pick a profile from YAML config.
+    
+    Args:
+        cfg: Loaded YAML config
+        profile: Profile name (e.g., 'portfolio' or 'portfolio_ny'), or None for auto-detect
+    
+    Returns:
+        Profile dict with portfolio settings
+    
+    Raises:
+        ValueError: If no valid profile found
+    """
+    # If profile specified and exists, use it
+    if profile and profile in cfg:
+        return cfg[profile]
+    
+    # Try default 'portfolio' key
+    if 'portfolio' in cfg:
+        return cfg['portfolio']
+    
+    # Search for any top-level dict with 'symbols' or 'strategies'
+    for key, value in cfg.items():
+        if isinstance(value, dict) and ('symbols' in value or 'strategies' in value):
+            return value
+    
+    raise ValueError(f"No valid portfolio profile found in config (tried: {profile or 'auto-detect'})")
+
+
+def normalize_schedule(cfg: Dict[str, Any], profile: str = None) -> Dict[str, Any]:
     """
     Normalize loaded YAML into internal schedule structure.
+    
+    Args:
+        cfg: Loaded YAML config (may contain multiple profiles)
+        profile: Profile name to use (e.g., 'portfolio' or 'portfolio_ny')
     
     Returns:
         {
@@ -66,8 +100,22 @@ def normalize_schedule(cfg: Dict[str, Any]) -> Dict[str, Any]:
             ]
         }
     """
-    portfolio = cfg.get('portfolio', {})
-    strategies_raw = cfg.get('strategies', [])
+    # Pick the profile first
+    selected_profile = pick_profile(cfg, profile)
+    
+    # Extract portfolio settings
+    portfolio = selected_profile
+    
+    # Look for strategies in top-level config
+    # Convention: 'strategies' for 'portfolio', 'strategies_ny' for 'portfolio_ny'
+    strategies_key = 'strategies'
+    if profile and profile.endswith('_ny'):
+        # Try _ny suffix first
+        strategies_key = 'strategies_ny'
+        if strategies_key not in cfg:
+            strategies_key = 'strategies'
+    
+    strategies_raw = cfg.get(strategies_key, [])
     
     # Parse session windows for each strategy
     strategies = []
@@ -105,5 +153,11 @@ def normalize_schedule(cfg: Dict[str, Any]) -> Dict[str, Any]:
         result['spreads'] = portfolio['spreads']
     else:
         result['spread_pips'] = portfolio.get('spread_pips', 0.6)
+    
+    # Validate required keys
+    if not result.get('symbols'):
+        raise ValueError("Schedule missing required key: 'symbols'")
+    if not result.get('strategies'):
+        raise ValueError("Schedule missing required key: 'strategies'")
     
     return result

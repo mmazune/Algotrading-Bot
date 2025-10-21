@@ -1,4 +1,4 @@
-.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws clean
+.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws scan_london scan_london_auto scan_exact replay_slice replay_slice_last replay_exact health snapshot demo_replay daily_runner risk news broker_test risk_parity digest live_oanda_ws recon digest_now live_port_profile_replay preflight service_install service_status service_logs clean
 
 setup:
 	python -m pip install -U pip
@@ -54,6 +54,86 @@ live_port_london_replay:
 
 live_port_london_ws:
 	python -m axfl.cli live-port --cfg axfl/config/sessions.yaml --mode ws --source finnhub
+
+scan_london:
+	python -m axfl.cli scan --symbols EURUSD,GBPUSD,XAUUSD --strategies lsg,orb,arls --days 30 --source auto --venue OANDA
+
+scan_london_auto:
+	python -m axfl.cli scan --symbols EURUSD,GBPUSD,XAUUSD --strategies lsg,orb,arls --days 45 --source auto --venue OANDA --method auto --top 3
+
+scan_exact:
+	python -m axfl.cli scan --symbols EURUSD,GBPUSD --strategies lsg,orb,arls --days 30 --source auto --venue OANDA --method exact --pad_before 60 --pad_after 60
+
+replay_slice:
+	@echo "Replace SCANS_JSON with your pasted JSON from scan_london output"
+	python -m axfl.cli replay-slice --scans 'SCANS_JSON'
+
+replay_slice_last:
+	@echo "Replace SCANS_JSON with your pasted JSON from scan output"
+	python -m axfl.cli replay-slice --scans 'SCANS_JSON' --ignore_yaml_windows true --extend 10
+
+replay_exact:
+	@echo "Replace SCANS_JSON with JSON from scan_exact output"
+	python -m axfl.cli replay-slice --scans 'SCANS_JSON' --use_scan_params true --warmup_days 3 --assert_min_trades 1 --extend 0
+
+health:
+	python -m axfl.cli health --cfg axfl/config/sessions.yaml
+
+snapshot:
+	python -m axfl.cli snapshot
+
+demo_replay:
+	python -m axfl.cli demo-replay --cfg axfl/config/sessions.yaml --extend 15
+
+daily_runner:
+	python -m axfl.cli daily-runner --cfg axfl/config/sessions.yaml
+
+risk:
+	python -m axfl.cli risk --cfg axfl/config/sessions.yaml
+
+news:
+	python -m axfl.cli news --csv samples/news_events.sample.csv --hours 24
+
+broker_test:
+	python -m axfl.cli broker-test --mirror oanda --symbol EURUSD --risk_perc 0.001
+
+risk_parity:
+	python -m axfl.cli risk-parity --cfg axfl/config/sessions.yaml --lookback 20
+
+digest:
+	python -m axfl.cli digest --date $$(date +%Y%m%d)
+
+live_oanda_ws:
+	python -m axfl.cli live-oanda --cfg axfl/config/sessions.yaml --mode ws --mirror oanda
+
+recon:
+	python -m axfl.cli reconcile
+
+digest_now:
+	python -m axfl.cli digest-now
+
+live_port_profile_replay:
+	python -m axfl.cli live-port --cfg axfl/config/sessions.yaml --mode replay --source auto --profile portfolio
+
+preflight:
+	python -m axfl.cli preflight --cfg axfl/config/sessions.yaml --profile portfolio
+
+service_install:
+	@echo "==> Installing AXFL systemd service (you may need sudo)"
+	sudo mkdir -p /etc/axfl
+	sudo cp deploy/axfl.env.sample /etc/axfl/axfl.env
+	sudo chown root:root /etc/axfl/axfl.env && sudo chmod 600 /etc/axfl/axfl.env
+	sudo cp deploy/axfl-daily-runner.service /etc/systemd/system/axfl-daily-runner@$(USER).service
+	sudo systemctl daemon-reload
+	sudo systemctl enable axfl-daily-runner@$(USER).service
+	sudo systemctl start axfl-daily-runner@$(USER).service
+	@echo '###BEGIN-AXFL-OPS### {"ok":true,"service":"axfl-daily-runner@$(USER)","action":"installed_and_started"} ###END-AXFL-OPS###'
+
+service_status:
+	sudo systemctl status axfl-daily-runner@$(USER).service --no-pager
+
+service_logs:
+	journalctl -u axfl-daily-runner@$(USER).service -n 200 --no-pager
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

@@ -31,17 +31,33 @@ class ORBStrategy(Strategy):
         - time_stop_m: 120 (max trade duration)
         - filter_min_or_pips: 4 (minimum OR size)
         - use_trend_filter: True (EMA trend filter)
+        - session: "london" or "ny" (determines opening range timing)
         """
         super().__init__(symbol, params)
         
-        # Set defaults
-        self.thr_break_pips = params.get('thr_break_pips', 3)
+        # Detect session type (for NY opening range support)
+        session = params.get('session', 'london').lower()
+        
+        # Set defaults based on session
+        if session == 'ny':
+            # NY session defaults (12:30 UTC opening range)
+            self.thr_break_pips = params.get('thr_break_pips', 4)
+            self.filter_min_or_pips = params.get('filter_min_or_pips', 5)
+            self.or_start_hour = 12
+            self.or_start_minute = 30
+        else:
+            # London session defaults (07:00 UTC opening range)
+            self.thr_break_pips = params.get('thr_break_pips', 3)
+            self.filter_min_or_pips = params.get('filter_min_or_pips', 4)
+            self.or_start_hour = 7
+            self.or_start_minute = 0
+        
+        self.session = session
         self.retest = params.get('retest', True)
         self.retest_tol_pips = params.get('retest_tol_pips', 2)
         self.buffer_pips = params.get('buffer_pips', 1)
         self.risk_perc = params.get('risk_perc', 0.5)
         self.time_stop_m = params.get('time_stop_m', 120)
-        self.filter_min_or_pips = params.get('filter_min_or_pips', 4)
         self.use_trend_filter = params.get('use_trend_filter', True)
         
         self.pip = pip_size(symbol)
@@ -73,13 +89,13 @@ class ORBStrategy(Strategy):
             df['EMA20'] = 0
             df['EMA50'] = 0
         
-        # Identify Opening Range bars (07:00-07:05 UTC, should be single 5m bar)
+        # Identify Opening Range bars (session-dependent timing)
         df['date'] = df.index.date
         df['hour'] = df.index.hour
         df['minute'] = df.index.minute
         
-        # Opening Range: 07:00:00 to 07:04:59 (closes at 07:05)
-        df['is_or_bar'] = (df['hour'] == 7) & (df['minute'] == 0)
+        # Opening Range: first 5m bar of session (e.g., 07:00 or 12:30)
+        df['is_or_bar'] = (df['hour'] == self.or_start_hour) & (df['minute'] == self.or_start_minute)
         
         # Get OR high/low for each day
         or_bars = df[df['is_or_bar']].copy()

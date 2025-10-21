@@ -1,19 +1,28 @@
 portfolio:
   symbols: ["EURUSD", "GBPUSD", "XAUUSD"]
   interval: "5m"
-  source: "auto"
+  source: "finnhub"  # WebSocket streaming via Finnhub
   venue: "OANDA"
   spreads:
     EURUSD: 0.6
     GBPUSD: 0.9
     XAUUSD: 2.5
   warmup_days: 3
-  status_every_s: 90
+  status_every_s: 5  # Fast status updates for testing
   risk:
     global_daily_stop_r: -5.0
     max_open_positions: 2
     per_strategy_daily_trades: 3
     per_strategy_daily_stop_r: -2.0
+  risk_parity:
+    enabled: true
+    lookback_d: 20
+    floor: 0.15      # Min 15% per symbol
+    cap: 0.60        # Max 60% per symbol
+  dd_lock:
+    enabled: true
+    trailing_pct: 5.0      # Halt if equity DD from peak >= 5%
+    cooloff_min: 120       # Wait 120min after halt to re-enable
 
 strategies:
   - name: "lsg"
@@ -42,3 +51,62 @@ strategies:
     windows:
       - start: "07:00"
         end: "10:00"
+
+# ==========================================
+# NY Session Profile
+# ==========================================
+portfolio_ny:
+  symbols: ["EURUSD", "GBPUSD", "XAUUSD"]
+  interval: "5m"
+  source: "finnhub"
+  venue: "OANDA"
+  spreads:
+    EURUSD: 0.6
+    GBPUSD: 0.9
+    XAUUSD: 2.5
+  warmup_days: 3
+  status_every_s: 90
+  risk:
+    global_daily_stop_r: -5.0
+    max_open_positions: 2
+    per_strategy_daily_trades: 3
+    per_strategy_daily_stop_r: -2.0
+  risk_parity:
+    enabled: true
+    lookback_d: 20
+    floor: 0.15
+    cap: 0.60
+  dd_lock:
+    enabled: true
+    trailing_pct: 5.0
+    cooloff_min: 120
+
+strategies_ny:
+  - name: "lsg"
+    params:
+      bos_buffer_pips: 0.5
+      reentry_window_m: 40
+      tol_pips: 2.5
+    windows:
+      - start: "12:30"
+        end: "16:00"
+  
+  - name: "orb"
+    params:
+      retest: false
+      filter_min_or_pips: 3
+      thr_break_pips: 4
+      session: "ny"  # NY-specific defaults
+    windows:
+      - start: "12:30"  # NY open
+        end: "16:00"
+  
+  - name: "arls"
+    params:
+      sweep_pips: 4
+      atr_multiplier: 0.1
+      reentry_window_m: 50
+      min_range_pips: 4
+    windows:
+      - start: "12:30"
+        end: "16:00"

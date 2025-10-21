@@ -102,3 +102,28 @@ def pip_size(symbol: str) -> float:
     
     # Default for major FX pairs
     return 0.0001
+
+
+# ============================================================
+# Compatibility shim for legacy imports
+# ============================================================
+from ..portfolio.scheduler import (
+    load_sessions_yaml as _load_yaml,
+    normalize_schedule as _normalize,
+    pick_profile as _pick
+)
+
+
+def load_sessions_yaml(path: str):
+    """Compatibility wrapper for portfolio.scheduler.load_sessions_yaml"""
+    return _load_yaml(path)
+
+
+def normalize_schedule(cfg: dict, profile: str = None):
+    """Compatibility wrapper for portfolio.scheduler.normalize_schedule"""
+    return _normalize(cfg, profile=profile)
+
+
+def pick_profile(cfg: dict, profile: str = None):
+    """Compatibility wrapper for portfolio.scheduler.pick_profile"""
+    return _pick(cfg, profile)
