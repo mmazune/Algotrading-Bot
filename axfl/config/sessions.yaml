@@ -1,7 +1,7 @@
 portfolio:
   symbols: ["EURUSD", "GBPUSD", "XAUUSD"]
   interval: "5m"
-  source: "finnhub"  # WebSocket streaming via Finnhub
+  source: "twelvedata"  # WebSocket streaming via Finnhub
   venue: "OANDA"
   spreads:
     EURUSD: 0.6
@@ -58,7 +58,7 @@ strategies:
 portfolio_ny:
   symbols: ["EURUSD", "GBPUSD", "XAUUSD"]
   interval: "5m"
-  source: "finnhub"
+  source: "twelvedata"
   venue: "OANDA"
   spreads:
     EURUSD: 0.6

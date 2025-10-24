@@ -522,12 +522,27 @@ class PortfolioEngine:
             ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
             client_tag = f"AXFL::{strategy_name}::{symbol}::{ts}::{uuid.uuid4().hex[:8]}"
             
+            # Compute entry price: try signal.entry, then entry_price, then fallback to bar close
+            entry_px = signal.get('entry') or signal.get('price')
+            if entry_px is None:
+                entry_px = pos.get('entry_price') or pos.get('entry')
+            if entry_px is None:
+                try:
+                    entry_px = float(bar['Close'])
+                except Exception:
+                    try:
+                        entry_px = float(bar.Close)
+                    except Exception:
+                        # Last resort: use position entry_price which must exist
+                        entry_px = float(pos['entry_price'])
+            entry_px = float(entry_px)
+            
             journal.upsert_axfl_trade(
                 axfl_id=axfl_id,
                 symbol=symbol,
                 strategy=strategy_name,
                 side=pos['side'],
-                entry=pos['entry'],
+                entry=entry_px,
                 sl=pos['sl'],
                 tp=pos.get('tp'),
                 opened_at=bar_time.isoformat(),
@@ -656,17 +671,27 @@ class PortfolioEngine:
             
             # Update journal with trade results
             if self.journal_enabled and axfl_id and HAS_JOURNAL:
+                # Ensure entry is not None - it should always be present in last_trade
+                entry_px = last_trade.get('entry')
+                if entry_px is None:
+                    # Fallback: this should not happen but be defensive
+                    try:
+                        entry_px = float(bar['Close'])
+                    except Exception:
+                        entry_px = float(bar.Close)
+                entry_px = float(entry_px)
+                
                 journal.upsert_axfl_trade(
                     axfl_id=axfl_id,
                     symbol=symbol,
                     strategy=strategy_name,
                     side=last_trade.get('side', 'unknown'),
-                    entry=last_trade.get('entry', 0),
+                    entry=entry_px,
                     sl=last_trade.get('sl'),
                     tp=last_trade.get('tp'),
                     r=realized_r,
                     pnl=realized_pnl,
-                    opened_at=last_trade.get('time_entered', bar_time).isoformat(),
+                    opened_at=last_trade.get('entry_time', bar_time).isoformat(),
                     closed_at=bar_time.isoformat()
                 )
                 
