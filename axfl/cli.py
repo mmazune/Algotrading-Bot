@@ -1331,7 +1331,9 @@ def news_command(csv: str, hours: int):
 @click.option('--symbol', default='EURUSD', help='Symbol for test calculation')
 @click.option('--risk_perc', default=0.001, type=float, help='Risk percentage for test (0.1% default)')
 @click.option('--place', is_flag=True, default=False, help='Actually place test order (default: dry run)')
-def broker_test(mirror: str, symbol: str, risk_perc: float, place: bool):
+@click.option('--sl_pips', default=10, type=int, help='Stop loss in pips for test order (default: 10)')
+@click.option('--debug', is_flag=True, default=False, help='Enable debug output (instrument info, payload)')
+def broker_test(mirror: str, symbol: str, risk_perc: float, place: bool, sl_pips: int, debug: bool):
     """
     Test OANDA broker connection and position sizing.
     
@@ -1341,6 +1343,11 @@ def broker_test(mirror: str, symbol: str, risk_perc: float, place: bool):
     Safe and idempotent - uses minimal risk and closes immediately.
     """
     import os
+    
+    # Set debug and sl_pips env vars for broker to use
+    if debug:
+        os.environ['AXFL_DEBUG'] = '1'
+    os.environ['AXFL_SELFTEST_SL_PIPS'] = str(sl_pips)
     
     click.echo("=== AXFL Broker Self-Test ===\n")
     
@@ -1410,6 +1417,24 @@ def broker_test(mirror: str, symbol: str, risk_perc: float, place: bool):
                             # Calculate position size if auth succeeded
                             click.echo(f"Calculating position size for {symbol}...")
                             click.echo(f"  Risk: {risk_perc*100:.3f}% of equity")
+                            
+                            # Debug: Show instrument metadata
+                            if debug:
+                                click.echo("\n[DEBUG] Fetching instrument metadata...")
+                                inst_info = broker._get_instrument_info(symbol)
+                                click.echo(f"[DEBUG] Instrument info for {symbol}:")
+                                click.echo(f"[DEBUG]   pipLocation: {inst_info['pipLocation']}")
+                                click.echo(f"[DEBUG]   displayPrecision: {inst_info['displayPrecision']}")
+                                click.echo(f"[DEBUG]   tradeUnitsPrecision: {inst_info['tradeUnitsPrecision']}")
+                                
+                                from axfl.utils.pricing import pip_size_from_location, pips_to_distance
+                                pip_size_val = pip_size_from_location(inst_info['pipLocation'])
+                                sl_distance = pips_to_distance(sl_pips, inst_info['pipLocation'])
+                                
+                                click.echo(f"[DEBUG]   Computed pip size: {pip_size_val}")
+                                click.echo(f"[DEBUG]   SL pips: {sl_pips}")
+                                click.echo(f"[DEBUG]   SL distance: {sl_distance}")
+                                click.echo()
                             
                             # Use dummy entry/SL for calculation (10 pip stop)
                             from axfl.data.symbols import pip_size

@@ -1,4 +1,4 @@
-.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws scan_london scan_london_auto scan_exact replay_slice replay_slice_last replay_exact health snapshot demo_replay daily_runner risk news broker_test risk_parity digest live_oanda_ws recon digest_now live_port_profile_replay preflight service_install service_status service_logs clean
+.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws scan_london scan_london_auto scan_exact replay_slice replay_slice_last replay_exact health snapshot demo_replay daily_runner risk news broker_test risk_parity digest live_oanda_ws recon digest_now live_port_profile_replay preflight service_install service_status service_logs broker_selftest clean
 
 setup:
 	python -m pip install -U pip
@@ -137,6 +137,11 @@ service_status:
 service_logs:
 	journalctl -u axfl-daily-runner@$(USER).service -n 200 --no-pager
 
+broker_selftest:
+	@AXFL_SELFTEST_SL_PIPS=$${AXFL_SELFTEST_SL_PIPS:-10}; \
+	AXFL_DEBUG=1 python -m axfl.cli broker-test --mirror oanda --symbol EURUSD --risk_perc 0.01 --place --sl_pips $$AXFL_SELFTEST_SL_PIPS --debug
+
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
+

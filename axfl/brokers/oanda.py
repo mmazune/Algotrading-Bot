@@ -63,6 +63,9 @@ class OandaPractice:
         self.errors = 0
         self.last_error = None
         
+        # Instrument metadata cache
+        self._instrument_info = {}  # symbol -> {pipLocation, displayPrecision, tradeUnitsPrecision}
+        
         # Setup logging
         log_dir = Path('logs')
         log_dir.mkdir(exist_ok=True)
@@ -106,6 +109,72 @@ class OandaPractice:
                 f.write(json.dumps(log_entry) + '\n')
         except Exception:
             pass  # Silent fail on logging
+    
+    def _get_instrument_info(self, symbol: str) -> Dict[str, int]:
+        """
+        Get instrument metadata from OANDA (cached).
+        
+        Args:
+            symbol: AXFL symbol (EURUSD, GBPUSD, etc.)
+            
+        Returns:
+            Dict with pipLocation, displayPrecision, tradeUnitsPrecision
+            
+        Example:
+            >>> info = broker._get_instrument_info('EURUSD')
+            >>> info['pipLocation']  # -4
+            >>> info['displayPrecision']  # 5
+        """
+        # Return cached if available
+        if symbol in self._instrument_info:
+            return self._instrument_info[symbol]
+        
+        # Fetch from OANDA API
+        instrument_name = self.instrument(symbol)
+        
+        try:
+            response = requests.get(
+                f'{self.base_url}/v3/accounts/{self.account_id}/instruments',
+                headers=self.headers,
+                params={'instruments': instrument_name},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                instruments = data.get('instruments', [])
+                
+                if instruments:
+                    inst = instruments[0]
+                    info = {
+                        'pipLocation': inst.get('pipLocation', -4),
+                        'displayPrecision': inst.get('displayPrecision', 5),
+                        'tradeUnitsPrecision': inst.get('tradeUnitsPrecision', 0)
+                    }
+                    
+                    # Cache it
+                    self._instrument_info[symbol] = info
+                    
+                    # Debug logging
+                    if os.getenv('AXFL_DEBUG') == '1':
+                        print(f"[DEBUG] Instrument info for {instrument_name}: {info}")
+                    
+                    return info
+            
+            # Fallback defaults for common instruments
+            self._log_event('instrument_info_fallback', {'symbol': symbol})
+            
+        except Exception as e:
+            self._log_event('instrument_info_error', {'symbol': symbol, 'error': str(e)})
+        
+        # Default fallback (EUR_USD-like)
+        default_info = {
+            'pipLocation': -4,
+            'displayPrecision': 5,
+            'tradeUnitsPrecision': 0
+        }
+        self._instrument_info[symbol] = default_info
+        return default_info
     
     def instrument(self, symbol: str) -> str:
         """
@@ -178,6 +247,9 @@ class OandaPractice:
             Dict with 'success', 'order_id', 'error' keys
         """
         instrument_name = self.instrument(symbol)
+        
+        # Ensure units is an integer (respecting tradeUnitsPrecision)
+        units = int(units)
         signed_units = units if side == 'long' else -units
         
         # Generate client tag if not provided
@@ -207,10 +279,39 @@ class OandaPractice:
         }
         
         # Attach SL/TP if provided
+        # For self-test orders, use distance-based SL to avoid OANDA validation errors
+        is_selftest = 'SELFTEST' in client_tag.upper()
+        
         if sl is not None:
-            order_spec['order']['stopLossOnFill'] = {'price': str(sl)}
+            if is_selftest:
+                # Use distance-based SL for self-test (more reliable)
+                from ..utils.pricing import pips_to_distance, fmt_price
+                
+                info = self._get_instrument_info(symbol)
+                pip_location = info['pipLocation']
+                display_precision = info['displayPrecision']
+                
+                # Get SL pips from env or default to 10
+                sl_pips = int(os.getenv('AXFL_SELFTEST_SL_PIPS', '10'))
+                distance = pips_to_distance(sl_pips, pip_location)
+                
+                order_spec['order']['stopLossOnFill'] = {
+                    'distance': fmt_price(distance, display_precision)
+                }
+                
+                if os.getenv('AXFL_DEBUG') == '1':
+                    print(f"[DEBUG] Self-test SL: {sl_pips} pips = {distance} distance")
+            else:
+                # Regular trades use price-based SL
+                order_spec['order']['stopLossOnFill'] = {'price': str(sl)}
         if tp is not None:
             order_spec['order']['takeProfitOnFill'] = {'price': str(tp)}
+        
+        # Debug logging of final payload
+        if os.getenv('AXFL_DEBUG') == '1':
+            # Redact auth header for safety
+            debug_payload = json.dumps(order_spec, indent=2)
+            print(f"[DEBUG] Order payload to OANDA:\n{debug_payload}")
         
         result = {'success': False, 'order_id': None, 'error': None, 'idempotent': False}
         
