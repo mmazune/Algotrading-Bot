@@ -7,6 +7,7 @@ Implements dynamic position sizing that adjusts trade size based on:
 - Stop loss distance (in pips)
 - Symbol-specific pip values
 """
+import os
 import math
 from typing import Optional
 from ..data.symbols import pip_size
@@ -119,6 +120,13 @@ def units_from_risk(
     # Floor and ensure minimum of 1
     units = int(math.floor(units))
     units = max(1, units)
+    
+    # Apply minimum units floor from environment
+    min_units = int(os.getenv("AXFL_MIN_UNITS", "100"))
+    if abs(units) > 0 and abs(units) < min_units:
+        if os.getenv('AXFL_DEBUG') == '1':
+            print(f"[position_sizing] Applying min units floor: {units} -> {min_units}")
+        units = min_units if units > 0 else -min_units
     
     return units
 

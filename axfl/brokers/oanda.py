@@ -21,6 +21,11 @@ import requests
 from pathlib import Path
 
 
+class MarketHalted(Exception):
+    """Raised when market is not tradeable (weekends, halts, etc)."""
+    pass
+
+
 class OandaPractice:
     """
     OANDA Practice broker adapter for trade mirroring.
@@ -176,6 +181,58 @@ class OandaPractice:
         self._instrument_info[symbol] = default_info
         return default_info
     
+    def _check_market_tradeable(self, symbol: str) -> bool:
+        """
+        Check if market is currently tradeable (preflight check).
+        
+        Args:
+            symbol: AXFL symbol
+            
+        Returns:
+            True if tradeable, raises MarketHalted if not
+            
+        Raises:
+            MarketHalted: If market is closed/halted
+        """
+        instrument_name = self.instrument(symbol)
+        
+        try:
+            response = requests.get(
+                f'{self.base_url}/v3/accounts/{self.account_id}/pricing',
+                headers=self.headers,
+                params={'instruments': instrument_name},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                prices = data.get('prices', [])
+                
+                if prices and len(prices) > 0:
+                    tradeable = prices[0].get('tradeable', False)
+                    
+                    if os.getenv('AXFL_DEBUG') == '1':
+                        print(f"[DEBUG] Market check for {instrument_name}: tradeable={tradeable}")
+                    
+                    if not tradeable:
+                        raise MarketHalted(f"MARKET_HALTED: {symbol} is not tradeable")
+                    
+                    return True
+            
+            # If we can't determine, log but allow (fail-open)
+            self._log_event('market_check_failed', {
+                'symbol': symbol,
+                'status': response.status_code
+            })
+            return True
+            
+        except MarketHalted:
+            raise
+        except Exception as e:
+            # Log but don't block on preflight errors
+            self._log_event('market_check_error', {'symbol': symbol, 'error': str(e)})
+            return True
+    
     def instrument(self, symbol: str) -> str:
         """
         Convert AXFL symbol to OANDA instrument name.
@@ -246,6 +303,22 @@ class OandaPractice:
         Returns:
             Dict with 'success', 'order_id', 'error' keys
         """
+        from ..monitor import alerts
+        
+        # Preflight check: ensure market is tradeable
+        try:
+            self._check_market_tradeable(symbol)
+        except MarketHalted as e:
+            # Send alert and return error
+            ctx = {'symbol': symbol, 'side': side, 'units': units, 'timestamp': datetime.utcnow()}
+            alerts.alert_order_canceled(ctx, reason="MARKET_HALTED")
+            return {
+                'success': False,
+                'order_id': None,
+                'error': str(e),
+                'reason': 'MARKET_HALTED'
+            }
+        
         instrument_name = self.instrument(symbol)
         
         # Ensure units is an integer (respecting tradeUnitsPrecision)
@@ -328,6 +401,8 @@ class OandaPractice:
                 if 'orderFillTransaction' in data:
                     result['success'] = True
                     result['order_id'] = data['orderFillTransaction'].get('id')
+                    fill_price = float(data['orderFillTransaction'].get('price', 0))
+                    
                     self._log_event('order_placed', {
                         'symbol': symbol,
                         'side': side,
@@ -335,9 +410,23 @@ class OandaPractice:
                         'order_id': result['order_id'],
                         'client_tag': client_tag
                     })
+                    
+                    # Send alert for filled order
+                    is_selftest = 'SELFTEST' in client_tag.upper()
+                    if is_selftest or os.getenv('AXFL_DEBUG') == '1':
+                        alerts.alert_order_filled({
+                            'symbol': symbol,
+                            'side': side,
+                            'units': units,
+                            'fill_price': fill_price,
+                            'tag': client_tag,
+                            'timestamp': datetime.utcnow()
+                        })
+                        
                 elif 'orderCreateTransaction' in data:
                     result['success'] = True
                     result['order_id'] = data['orderCreateTransaction'].get('id')
+                    
                     self._log_event('order_placed', {
                         'symbol': symbol,
                         'side': side,
@@ -345,6 +434,18 @@ class OandaPractice:
                         'order_id': result['order_id'],
                         'client_tag': client_tag
                     })
+                    
+                    # Send alert for placed order
+                    alerts.alert_order_placed({
+                        'symbol': symbol,
+                        'side': side,
+                        'units': units,
+                        'sl': sl,
+                        'tp': tp,
+                        'tag': client_tag,
+                        'timestamp': datetime.utcnow()
+                    })
+                    
                 else:
                     result['error'] = 'Order placed but no transaction ID'
                     self.errors += 1
@@ -357,11 +458,27 @@ class OandaPractice:
                     'error': response.text
                 })
                 
+                # Send alert for failed order
+                alerts.alert_order_failed({
+                    'symbol': symbol,
+                    'side': side,
+                    'units': units,
+                    'timestamp': datetime.utcnow()
+                }, error=f"HTTP {response.status_code}")
+                
         except Exception as e:
             result['error'] = str(e)
             self.errors += 1
             self.last_error = str(e)
             self._log_event('order_error', {'symbol': symbol, 'error': str(e)})
+            
+            # Send alert for order error
+            alerts.alert_order_failed({
+                'symbol': symbol,
+                'side': side,
+                'units': units,
+                'timestamp': datetime.utcnow()
+            }, error=str(e))
         
         return result
     

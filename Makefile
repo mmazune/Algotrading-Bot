@@ -1,4 +1,4 @@
-.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws scan_london scan_london_auto scan_exact replay_slice replay_slice_last replay_exact health snapshot demo_replay daily_runner risk news broker_test risk_parity digest live_oanda_ws recon digest_now live_port_profile_replay preflight service_install service_status service_logs broker_selftest clean
+.PHONY: setup test run_arls run_arls_td run_arls_fh run_arls_auto run_orb_auto run_lsg_auto run_choch_auto run_breaker_auto tune_lsg compare_top live_lsg_ws live_lsg_replay live_port_replay live_port_ws live_port_london_replay live_port_london_ws scan_london scan_london_auto scan_exact replay_slice replay_slice_last replay_exact health snapshot demo_replay daily_runner risk news broker_test risk_parity digest live_oanda_ws recon digest_now live_port_profile_replay preflight service_install service_status service_logs broker_selftest alerts_test alerts_cfg clean
 
 setup:
 	python -m pip install -U pip
@@ -140,6 +140,21 @@ service_logs:
 broker_selftest:
 	@AXFL_SELFTEST_SL_PIPS=$${AXFL_SELFTEST_SL_PIPS:-10}; \
 	AXFL_DEBUG=1 python -m axfl.cli broker-test --mirror oanda --symbol EURUSD --risk_perc 0.01 --place --sl_pips $$AXFL_SELFTEST_SL_PIPS --debug
+
+alerts_test:
+	@if [ -z "$$DISCORD_WEBHOOK_URL" ]; then \
+		echo "ERROR: DISCORD_WEBHOOK_URL not set. Export it first."; \
+		exit 1; \
+	fi
+	python scripts/send_test_alert.py --sample all
+
+alerts_cfg:
+	@echo "==> Current Alert Configuration"
+	@echo "DISCORD_WEBHOOK_URL: $$(if [ -n "$$DISCORD_WEBHOOK_URL" ]; then echo '[SET]'; else echo '[NOT SET]'; fi)"
+	@echo "AXFL_MIN_UNITS: $${AXFL_MIN_UNITS:-100}"
+	@echo "AXFL_ALERTS_ENABLED: $${AXFL_ALERTS_ENABLED:-1}"
+	@echo "AXFL_ALERT_SUMMARY_TIME_UTC: $${AXFL_ALERT_SUMMARY_TIME_UTC:-16:05}"
+	@echo "AXFL_DEBUG: $${AXFL_DEBUG:-0}"
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
