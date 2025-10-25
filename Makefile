@@ -120,10 +120,12 @@ preflight:
 
 service_install:
 	@echo "==> Installing AXFL systemd service (you may need sudo)"
+	@# Ensure env dir exists and seed a sample if not present
 	sudo mkdir -p /etc/axfl
-	sudo cp deploy/axfl.env.sample /etc/axfl/axfl.env
+	if [ ! -f /etc/axfl/axfl.env ]; then sudo cp deploy/axfl.env.sample /etc/axfl/axfl.env; fi
 	sudo chown root:root /etc/axfl/axfl.env && sudo chmod 600 /etc/axfl/axfl.env
-	sudo cp deploy/axfl-daily-runner.service /etc/systemd/system/axfl-daily-runner@$(USER).service
+	@# Install templated unit for the current user
+	sudo cp deploy/axfl-daily-runner.service /etc/systemd/system/axfl-daily-runner@.service
 	sudo systemctl daemon-reload
 	sudo systemctl enable axfl-daily-runner@$(USER).service
 	sudo systemctl start axfl-daily-runner@$(USER).service

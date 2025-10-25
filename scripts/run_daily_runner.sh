@@ -1,55 +1,31 @@
-#!/bin/bash
-# AXFL Daily Runner - Production launcher script
-# Runs automated London + NY trading sessions
-set -e
+#!/usr/bin/env bash
+# AXFL daily runner wrapper for systemd
+set -Eeuo pipefail
 
-# Get the directory where this script lives
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve repo root (script lives in repo/scripts)
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_DIR"
 
-# Change to repo root
-cd "$REPO_ROOT"
+# Load environment from /etc/axfl/axfl.env if present
+if [[ -f /etc/axfl/axfl.env ]]; then
+  # Export all sourced vars
+  set -a
+  # shellcheck disable=SC1091
+  source /etc/axfl/axfl.env
+  set +a
+fi
 
-echo "=== AXFL Daily Runner Starting ==="
-echo "Working directory: $(pwd)"
-echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-
-# Load environment variables from /etc/axfl/axfl.env if present
-if [ -f "/etc/axfl/axfl.env" ]; then
-    echo "Loading environment from /etc/axfl/axfl.env"
-    set -a  # automatically export all variables
-    source /etc/axfl/axfl.env
-    set +a
+# Prefer local virtualenv if present
+if [[ -f ".venv/bin/activate" ]]; then
+  echo "[axfl] activating venv at ${REPO_DIR}/.venv" >&2
+  # shellcheck disable=SC1091
+  . ".venv/bin/activate"
 else
-    echo "Warning: /etc/axfl/axfl.env not found, using existing environment"
+  echo "[axfl] .venv not found; using system python" >&2
 fi
 
-# Activate virtualenv if it exists
-if [ -d ".venv" ]; then
-    echo "Activating virtualenv: .venv"
-    source .venv/bin/activate
-else
-    echo "No .venv found, using system Python"
-fi
+# Unbuffer Python output so journald gets lines immediately
+export PYTHONUNBUFFERED=1
 
-# Show Python version
-echo "Python: $(python --version)"
-echo "Python path: $(which python)"
-
-# Verify OANDA credentials
-if [ -z "$OANDA_API_KEY" ] || [ -z "$OANDA_ACCOUNT_ID" ]; then
-    echo "ERROR: OANDA credentials not set in environment"
-    echo "Please configure /etc/axfl/axfl.env with OANDA_API_KEY and OANDA_ACCOUNT_ID"
-    exit 1
-fi
-
-echo "OANDA environment: ${OANDA_ENV:-practice}"
-echo "Finnhub keys configured: $([ -n "$FINNHUB_API_KEYS" ] && echo 'yes' || echo 'no')"
-echo "Discord webhook configured: $([ -n "$DISCORD_WEBHOOK_URL" ] && echo 'yes' || echo 'no')"
-echo ""
-
-# Run the daily runner
-echo "Launching AXFL daily runner..."
-exec python -m axfl.cli daily-runner \
-    --cfg axfl/config/sessions.yaml \
-    --profile portfolio
+echo "[axfl] starting daily runner..." >&2
+exec python -m axfl.cli daily-runner --cfg axfl/config/sessions.yaml --profile portfolio
