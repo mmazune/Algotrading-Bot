@@ -1,0 +1,9 @@
+ALERTS_ENV cwd=/workspaces/Algotrading-Bot py=3.12.1
+ALERTS_SOURCE src=env url=https://…MASK…xu8Lcs
+ALERTS_URL_VALID valid=True
+ALERTS_FALLBACK_WRITE ok=1
+ALERTS_DNS resolve=discord.com ip=162.159.128.233
+ALERTS_PING_PLAIN code=403 body_len=16
+ALERTS_PING_EMBED code=403 body_len=16
+ALERTS_SEND_LIB code=403
+ALERTS_SHOWCASE_SENT ok=1

@@ -3,11 +3,33 @@ AXFL Discord Notify - Lightweight stdlib-only Discord webhook client
 Reuses existing alerts.py infrastructure but provides stdlib fallback
 """
 from __future__ import annotations
-import os, json, time, urllib.request, urllib.error
+import os, json, time, urllib.request, urllib.error, pathlib
 from typing import List, Dict, Any, Optional
 
 # Colors
 GREEN=0x16A34A; RED=0xDC2626; YELLOW=0xF59E0B; BLUE=0x3B82F6; GRAY=0x6B7280
+
+def _resolve_webhook() -> str:
+    """Order: DISCORD_WEBHOOK_URL env -> DISCORD_WEBHOOK_URL_FILE env -> reports/.discord_webhook file"""
+    env = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    if env:
+        return env
+    fp = (os.environ.get("DISCORD_WEBHOOK_URL_FILE") or "").strip()
+    cand = [fp] if fp else []
+    cand.append("reports/.discord_webhook")
+    for p in cand:
+        if not p: continue
+        try:
+            txt = pathlib.Path(p).read_text().strip()
+            if txt: return txt
+        except Exception:
+            pass
+    return ""
+
+def _mask(u: str) -> str:
+    if not u: return "EMPTY"
+    if len(u) <= 16: return "***"
+    return u[:8] + "…MASK…" + u[-6:]
 
 def _debug_log(msg:str, code:int|None=None):
     if os.environ.get("ALERTS_DEBUG","0")!="1": return
@@ -33,7 +55,8 @@ def _post_json(url: str, payload: dict) -> int:
 
 def send_discord(text: str, *, embeds: Optional[List[Dict[str,Any]]]=None, color:int|None=None) -> int:
     if os.environ.get("ALERTS_ENABLED","1")!="1": return 0
-    url=(os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    url = _resolve_webhook()
+    _debug_log(f"webhook_source={('env' if os.environ.get('DISCORD_WEBHOOK_URL') else 'file')} value={_mask(url)}")
     if not url: return 0
     payload={"content": text[:1500]}
     if embeds:

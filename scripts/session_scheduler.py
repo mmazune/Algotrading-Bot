@@ -1,4 +1,5 @@
 import os, sys, time, json, math, argparse, subprocess, datetime as dt
+import pandas as pd
 
 try:
     from axfl.notify.discord import alert_scheduler_start, alert_scheduler_stop
@@ -21,6 +22,21 @@ def next_tick(now=None, interval_min=5):
 
 def run_once():
     os.makedirs("reports", exist_ok=True)
+    
+    # Load state for auto-ranking
+    state_file = "reports/scheduler_state.json"
+    if os.path.exists(state_file):
+        try:
+            with open(state_file) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+    else:
+        state = {}
+    
+    state.setdefault("weekly_rank_done", "")
+    state.setdefault("monthly_rank_done", "")
+    
     # 1) Run live decision (DRYRUN or LIVE based on ENV)
     cmd = [sys.executable, "scripts/live_trade_oanda.py"]
     p = subprocess.run(cmd, capture_output=True, text=True)
@@ -39,6 +55,29 @@ def run_once():
         if ln.startswith("M10_MANAGE "): mg_line = ln; break
     with open("reports/live_roll.log","a") as f:
         f.write((p3.stdout or "") + "\n")
+    
+    # 4) Auto-ranking: Weekly (Monday 00:05 UTC) and Monthly (1st 00:10 UTC)
+    try:
+        now = pd.Timestamp.utcnow().tz_localize("UTC")
+        # Weekly: Monday 00:05 UTC, run once per day
+        if now.weekday() == 0 and now.hour == 0 and now.minute >= 5 and now.minute < 10:
+            if state.get("weekly_rank_done") != now.date().isoformat():
+                subprocess.run([sys.executable, "scripts/rank_strategies.py"], capture_output=True)
+                state["weekly_rank_done"] = now.date().isoformat()
+        
+        # Monthly: 1st day 00:10 UTC, run once per month
+        if now.day == 1 and now.hour == 0 and now.minute >= 10 and now.minute < 15:
+            month_key = now.strftime("%Y-%m")
+            if state.get("monthly_rank_done") != month_key:
+                subprocess.run([sys.executable, "scripts/rank_strategies.py"], capture_output=True)
+                state["monthly_rank_done"] = month_key
+        
+        # Persist state
+        with open(state_file, "w") as f:
+            json.dump(state, f, indent=2)
+    except Exception:
+        pass  # Don't fail scheduler if ranking fails
+    
     return out, dash_line, mg_line
 
 def main():

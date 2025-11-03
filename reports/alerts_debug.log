@@ -3,3 +3,19 @@ TEST_ACCOUNT mode=OANDA balance=99.6800 nav=99.6800 marginAvail=99.6800 currency
 TEST_ORDER_OPEN id=18 side=SHORT units=2000 entry=1.15187 sl=1.15245 tp=1.15135
 TEST_ORDER_CLOSE id=18 exit=1.15200 status=OK
 ALERTS_TEST open=OK close=OK
+ALERTS_SHOWCASE_OK
+TEST_ACCOUNT mode=OANDA balance=99.2800 nav=99.2800 marginAvail=99.2800 currency=USD approx100=OK
+TEST_ORDER_OPEN id=34 side=LONG units=2000 entry=1.15133 sl=1.15074 tp=1.15184
+TEST_ORDER_CLOSE id=34 exit=1.15116 status=OK
+ALERTS_TEST open=OK close=OK
+RANK_WEEK top=AXFL_TEST rows=1 file=reports/strat_rank_week.csv
+RANK_MONTH top=NA rows=0 file=reports/strat_rank_month.csv
+AXFL_RANK_OK
+ALERTS_DIAG source=env url=https://…MASK…xu8Lcs code=403
+ALERTS_SHOWCASE_OK
+TEST_ORDER_OPEN id=42 side=LONG units=1666 entry=1.15194 sl=1.15124 tp=1.15254
+TEST_ORDER_CLOSE id=42 exit=1.15176 status=OK
+ALERTS_TEST open=OK close=OK
+RANK_WEEK top=AXFL_TEST rows=1 file=reports/strat_rank_week.csv
+RANK_MONTH top=NA rows=0 file=reports/strat_rank_month.csv
+AXFL_RANK_OK
