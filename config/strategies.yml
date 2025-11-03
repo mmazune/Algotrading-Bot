@@ -1,0 +1,18 @@
+lsg:
+  enabled: true
+  risk_pct: 0.0075
+orb:
+  enabled: true
+  risk_pct: 0.005
+arls:
+  enabled: true
+  risk_pct: 0.005
+price_action_breakout:
+  enabled: true
+  risk_pct: 0.005
+ema_trend:
+  enabled: true
+  risk_pct: 0.005
+bollinger_mean_rev:
+  enabled: true
+  risk_pct: 0.004

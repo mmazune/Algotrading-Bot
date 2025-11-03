@@ -1,68 +1,30 @@
-"""
-Base strategy interface.
-"""
+from __future__ import annotations
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import pandas as pd
-from typing import List, Dict, Any
 
+@dataclass
+class OrderPlan:
+    side: int          # +1 long, -1 short, 0 flat
+    sl_pips: float     # risk in pips (for execution engine)
+    tp_pips: float     # reward in pips (for execution engine)
+    tag: str = ""      # strategy label
+    # Legacy fields for compatibility with old generate() methods
+    sl: float | None = None   # price
+    tp: float | None = None   # price
+    units: int | None = None  # OANDA uses units, can be negative for short
+    reason: str = ""
 
 class Strategy(ABC):
-    """
-    Abstract base class for trading strategies.
-    """
-    
-    name: str = "BaseStrategy"
-    
-    def __init__(self, symbol: str, params: Dict[str, Any]):
-        """
-        Initialize strategy.
-        
-        Args:
-            symbol: Trading symbol
-            params: Strategy parameters
-        """
-        self.symbol = symbol
-        self.params = params
-    
+    name: str
     @abstractmethod
-    def prepare(self, df: pd.DataFrame) -> pd.DataFrame:
+    def generate(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """
-        Prepare data by adding indicators and other derived columns.
-        
-        Args:
-            df: OHLCV DataFrame
-        
-        Returns:
-            DataFrame with additional columns
+        Return df with columns:
+          - signal: {1,-1,0}
+          - sl, tp: floats (price) or NaN
+          - units: int (optional; engine may size at execution)
+          - reason: string (optional)
+        Expects df with 'open','high','low','close' (UTC-indexed).
         """
-        pass
-    
-    @abstractmethod
-    def generate_signals(self, i: int, row: pd.Series, state: Dict) -> List[Dict]:
-        """
-        Generate trading signals for the current bar.
-        
-        Args:
-            i: Current bar index
-            row: Current bar data
-            state: Strategy state dictionary (mutable)
-        
-        Returns:
-            List of order dictionaries with keys:
-            - action: 'open' or 'close'
-            - side: 'long' or 'short'
-            - price: float or None (None = market)
-            - sl: stop-loss price or None
-            - tp: take-profit price or None
-            - notes: string with trade notes
-        """
-        pass
-    
-    def on_fill(self, trade_state: Dict) -> None:
-        """
-        Optional callback when a trade is filled.
-        
-        Args:
-            trade_state: Dictionary with trade information
-        """
-        pass
+        ...

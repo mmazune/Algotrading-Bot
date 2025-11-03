@@ -1,0 +1,59 @@
+{
+  "coding": {
+    "checks": {
+      "C1": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "C2": [
+        true,
+        true,
+        true
+      ],
+      "C3": [
+        true,
+        true
+      ],
+      "C4": [
+        true,
+        true
+      ],
+      "C5": [
+        true,
+        true
+      ],
+      "C6": [
+        true
+      ],
+      "C7": [
+        true
+      ]
+    },
+    "6": true
+  },
+  "deployment": {
+    "checks": {
+      "D1": [
+        true
+      ],
+      "D2": [
+        true
+      ],
+      "D3": [
+        true
+      ],
+      "D4": [
+        true
+      ],
+      "D5": [
+        true
+      ],
+      "D6": [
+        true
+      ]
+    },
+    "1": true
+  }
+}

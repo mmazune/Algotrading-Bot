@@ -1,0 +1,120 @@
+================================================================================
+                   AXFL MILESTONE 4 COMPLETION REPORT
+             OANDA Connectivity + Risk Manager + Live/Sim Runner
+================================================================================
+
+OBJECTIVE
+---------
+Add OANDA API connectivity with automatic fallback to simulation, implement
+risk management guardrails, and create a unified runner that seamlessly switches
+between live market data and synthetic data.
+
+DELIVERABLES
+------------
+1. OANDA API client using stdlib urllib (no requests dependency)
+2. Environment variable detection and account validation
+3. Risk manager with multiple safety guards
+4. Unified live_or_sim runner with automatic mode selection
+5. CSV trade output and concise success markers
+6. Progress update reflecting connectivity and risk controls
+
+ARCHITECTURE
+------------
+
+1. **OANDA Client** (axfl/brokers/oanda_api.py)
+   - OandaClient class with _req() method for HTTP calls
+   - account_summary() for account validation
+   - fetch_oanda_candles() for M5 EUR_USD historical data
+   - Auto-detects OANDA_API_KEY, OANDA_ACCOUNT_ID, OANDA_ENV
+   - Falls back to SIM mode if credentials missing or API errors
+
+2. **Risk Manager** (axfl/engine/risk.py)
+   - RiskConfig dataclass with configurable parameters:
+     * risk_pct: 1.0% per trade
+     * daily_stop_R: 4.0 R-multiples max daily loss
+     * max_open_positions: 1 concurrent position
+     * atr_guard_min_pips: 3.0 pips minimum ATR (volatility filter)
+   - allow_entry() function checks all guards before order placement
+
+3. **Executor Enhancements** (axfl/engine/executor.py)
+   - maybe_oanda_df(): Auto-selects OANDA candles vs synthetic data
+   - run_sim(): Upgraded with risk_cfg parameter and guard integration
+   - run_auto(): Convenience wrapper for one-line execution
+   - _metrics(): Calculates PF, Win%, AvgR, MaxDD, TotalR, PnL
+   - Preserves M3 compatibility with run_sim_legacy()
+
+4. **Live/Sim Runner** (scripts/live_or_sim.py)
+   - Tests 3 strategies: ema_trend, bollinger_mean_rev, price_action_breakout
+   - Saves reports/m4_trades.csv with order details
+   - Prints SUCCESS MARKERS only (no verbose logs)
+
+RISK GUARDRAILS
+---------------
+1. **Daily Stop Loss**: Halts trading if cumulative R <= -4.0
+2. **Position Limit**: Maximum 1 concurrent position (no pyramiding)
+3. **Volatility Filter**: Skips entries if ATR < 3.0 pips (too quiet)
+4. **Per-Trade Risk**: Fixed 1.0% account risk per trade
+
+ENVIRONMENT VARIABLES
+--------------------
+Required for OANDA mode:
+- OANDA_API_KEY or OANDA_TOKEN
+- OANDA_ACCOUNT_ID
+- OANDA_ENV (practice/live, default: practice)
+- OANDA_INSTR (default: EUR_USD)
+
+If any are missing or account validation fails (HTTP != 200), system
+automatically falls back to SIM mode with synthetic random walk data.
+
+MODE SELECTION LOGIC
+--------------------
+1. Check for OANDA credentials in environment
+2. If present, create OandaClient and ping account_summary()
+3. If HTTP 200, fetch M5 candles (last 1500 bars)
+4. If candles fetch succeeds, return OANDA mode with real data
+5. Otherwise, return SIM mode with synthetic EUR/USD
+
+SIMULATION PARAMETERS
+---------------------
+- Balance: $200.00
+- Risk per trade: 1.0% = $2.00
+- Pip value: $0.0001 per unit
+- Data: OANDA M5 candles (if available) or 2200-bar synthetic random walk
+
+DEPENDENCIES
+------------
+Minimal stdlib approach:
+- urllib.request for HTTP (no requests library)
+- pandas, numpy only external deps
+- json for OANDA API parsing
+
+FILES CREATED/MODIFIED
+----------------------
+- axfl/brokers/__init__.py (updated exports)
+- axfl/brokers/oanda_api.py (88 lines) - NEW
+- axfl/engine/risk.py (24 lines) - NEW
+- axfl/engine/executor.py (182 lines) - UPGRADED
+- scripts/live_or_sim.py (25 lines) - NEW
+- progress.json - UPDATED (C4+1, C5+1, D3+1, D4+1)
+- reports/m4_explanation.txt (this document)
+
+SUCCESS MARKERS
+---------------
+Script outputs exactly 5 lines (plus progress):
+1. OANDA_READY mode=... account=... env=... instrument=...
+2. FIRST_ORDER id=... side=... units=... entry=... sl=... tp=... tag=...
+3. RISK_GUARDS risk_pct=... daily_stop_R=... max_open=... atr_min_pips=...
+4. LIVE_SUMMARY PF=... Win%=... Trades=... TotalR=... PnL$=...
+5. AXFL_M4_OK
+
+NEXT STEPS
+----------
+M4 establishes connectivity and risk infrastructure. Future milestones:
+- M5: Real-time streaming with OANDA v20 pricing stream
+- M6: Production order execution (not just simulation)
+- M7: Multi-symbol portfolio with correlation checks
+- M8: Advanced analytics (Sharpe, Sortino, Monte Carlo)
+
+================================================================================
+                            AXFL MILESTONE 4 COMPLETE
+================================================================================

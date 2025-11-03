@@ -1,0 +1,9 @@
+=== REGISTRY CHECK ===
+REGISTRY contains: arls, bollinger_mean_rev, ema_trend, lsg, orb, price_action_breakout
+=== BACKTEST SUMMARY ===
+price_action_breakout: PF=1.00 Win%=0.0 AvgR=0.00 MaxDD(R)=0.00 TotalR=0.00 Trades=0
+ema_trend: PF=1.00 Win%=0.0 AvgR=0.00 MaxDD(R)=0.00 TotalR=0.00 Trades=0
+bollinger_mean_rev: PF=0.84 Win%=46.0 AvgR=-0.09 MaxDD(R)=21.71 TotalR=-10.02 Trades=113
+=== SIZING DEMO ===
+SIZED units=999, margin@1:50=$21.58, margin@1:200=$5.39, risk$=2.00, stop=20pips
+AXFL_M1_OK

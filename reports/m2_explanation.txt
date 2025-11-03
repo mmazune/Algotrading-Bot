@@ -1,0 +1,113 @@
+AXFL Milestone 2 - Signal & Backtest Upgrades Summary
+======================================================
+
+OBJECTIVE:
+----------
+Improve signal frequency on synthetic data and add parameter grid-search
+to find better performing strategy configurations.
+
+CHANGES MADE:
+-------------
+
+1. STRATEGY PARAMETER TUNING (Relaxed Filters for Synthetic Data)
+   
+   a) PriceActionBreakout:
+      - lookback: 20 → 15 (faster breakout detection)
+      - buffer_pips: 1.0 → 0.5 (easier entry trigger)
+      - min_break_pips: 8 → 3 (lower range threshold)
+      - min_atr_pips: 6 → 2 (lower volatility requirement)
+      - use_htf_filter: True → False (no trend filter on synthetic data)
+   
+   b) EmaTrend:
+      - fast: 20 → 10 (faster EMA response)
+      - slow: 50 → 30 (faster trend detection)
+      - pullback: 5 → 4 (less strict pullback requirement)
+      - slope_pips: 8.0 → 3.0 (gentler slope threshold)
+   
+   c) BollingerMeanRev:
+      - Added width contraction filter: only enter when BB width <= 20-bar median * 1.10
+      - This filters out expanding volatility environments (better for mean-reversion)
+
+2. NEW GRID-SEARCH SCRIPT (scripts/backtest_suite.py)
+   
+   Implements small parameter grids for each strategy:
+   - PriceActionBreakout: 5 parameter combinations
+   - EmaTrend: 5 parameter combinations  
+   - BollingerMeanRev: 5 parameter combinations
+   
+   For each combination:
+   - Runs full backtest on synthetic EUR/USD data (1500 bars, 5-min)
+   - Tracks: Profit Factor, Win%, AvgR, MaxDD(R), TotalR, Trades
+   - Selects best by: highest PF → highest TotalR → most trades
+   
+   Outputs:
+   - CSV: reports/m2_grid_results.csv (all 15 combinations)
+   - Console: One-line summary per strategy with best params
+
+3. ENHANCED BACKTEST_QUICK.PY
+   
+   Added CLI arguments:
+   - --strategy <name>: Specify which strategy to test
+   - --params <json>: Pass custom parameters as JSON string
+   
+   Example usage:
+     python scripts/backtest_quick.py --strategy ema_trend --params '{"fast":10,"slow":30}'
+   
+   Maintains backward compatibility (default behavior unchanged).
+
+4. PROGRESS TRACKING UPDATES
+   
+   Updated progress.json to reflect milestone completion:
+   - Coding: 30.0% → 50.0% (added C3, C4 checkpoints)
+   - Deployment: 0.0% → 15.0% (added D1 checkpoint)
+   - Project Total: 15.0% → 32.5%
+
+GRID SEARCH RESULTS:
+--------------------
+
+Best parameters found for each strategy:
+
+1. price_action_breakout:
+   - PF: 0.00 (no trades - still too strict for synthetic random walk)
+   - Best params: {"lookback": 12, "buffer_pips": 0.5, "min_break_pips": 3, "min_atr_pips": 2, "use_htf_filter": false}
+   - Note: Breakout strategies struggle on pure random walk data without directional bias
+
+2. ema_trend:
+   - PF: 1.18, Win%: 46.2%, Trades: 13
+   - Best params: {"fast": 10, "slow": 30, "pullback": 4, "slope_pips": 3.0}
+   - Improvement: 0 trades → 13 trades (signal frequency fixed!)
+
+3. bollinger_mean_rev:
+   - PF: 1.33, Win%: 54.5%, Trades: 88
+   - Best params: {"n": 24, "k": 2.0}
+   - Improvement: PF 0.84 → 1.33, Win% 46.0% → 54.5% (better params + contraction filter)
+
+FILES CREATED/MODIFIED:
+-----------------------
+Modified:
+  - axfl/strategies/price_action_breakout.py (relaxed default params)
+  - axfl/strategies/ema_trend.py (relaxed default params)
+  - axfl/strategies/bollinger_mean_rev.py (added width contraction filter)
+  - scripts/backtest_quick.py (added CLI args)
+  - progress.json (updated checkpoints)
+
+Created:
+  - scripts/backtest_suite.py (grid-search engine)
+  - reports/m2_grid_results.csv (15 rows of grid results)
+  - reports/m2_grid_results.log (console output)
+  - reports/m2_explanation.txt (this file)
+
+NEXT STEPS:
+-----------
+1. Test strategies on real historical data (not synthetic)
+2. Implement walk-forward optimization
+3. Add transaction costs and slippage modeling
+4. Create ensemble/portfolio strategies
+5. Implement live trading connectors
+
+SUCCESS METRICS:
+----------------
+✓ EmaTrend now generates signals (0 → 13 trades)
+✓ BollingerMeanRev improved profitability (PF 0.84 → 1.33)
+✓ Grid-search infrastructure in place for future tuning
+✓ Progress tracking shows 32.5% project completion

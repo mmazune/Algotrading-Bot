@@ -1,0 +1,6 @@
+OANDA_EXEC_READY mode=OANDA trading=DRYRUN account=101-001-37425530-001 env=practice instrument=EUR_USD
+SIGNAL_DECISION strategy=NONE side=0 entry=NA sl=NA tp=NA units=0
+ORDER_ACTION action=SKIPPED orderID=NA reason=no_session
+KILL_SWITCH day_total_R=0.00 trades_today=0 daily_stop_R=4.0 max_trades_day=6
+AXFL_M5_OK
+

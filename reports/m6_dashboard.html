@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>AXFL Dashboard</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0b0d10;color:#e6e9ef;margin:20px}
+h1{margin:0 0 8px 0} .card{background:#111418;border:1px solid #1a1f24;border-radius:12px;padding:16px;margin:10px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+table{width:100%;border-collapse:collapse} th,td{padding:6px 8px;border-bottom:1px solid #1f252b;font-size:12px}
+th{text-align:left;color:#aab2bd} .muted{color:#aab2bd;font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#1d3b2a;color:#c7f0c2;border:1px solid #2b5a3c;font-weight:600}
+</style>
+</head><body>
+<h1>AXFL Live Dashboard</h1>
+<div class="muted">Updated: 2025-11-03T02:48:36Z</div>
+
+<div class="grid">
+  <div class="card">
+    <div><span class="badge">Latest</span></div>
+    <div class="muted">Mode/Trading:</div>
+    <div style="font-size:14px;margin:4px 0 8px 0">OANDA / DRYRUN</div>
+    <div class="muted">Strategy / Action:</div>
+    <div style="font-size:14px;margin:4px 0 8px 0">NONE / SKIPPED (no_session)</div>
+    <div class="muted">Day Risk R / Trades Today:</div>
+    <div style="font-size:14px;margin:4px 0 8px 0">0.0 / 0</div>
+  </div>
+  <div class="card">
+    <div><span class="badge">Day R Sparkline</span></div>
+    <svg width="600" height="120"><path d="M 6.0,114.0" fill="none" stroke="#0a0" stroke-width="2"/><line x1="6" y1="114.0" x2="594" y2="114.0" stroke="#bbb" stroke-dasharray="3,3"/></svg>
+  </div>
+</div>
+
+<div class="card">
+  <div style="margin-bottom:8px"><span class="badge">Recent Events</span></div>
+  <table>
+    <thead><tr>
+      <th>Time (UTC)</th><th>Mode</th><th>Trading</th><th>Strategy</th><th>Side</th>
+      <th>Units</th><th>Action</th><th>Reason</th><th>Day R</th><th>Trades</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>2025-11-03T02:48:36+00:00Z</td><td>OANDA</td><td>DRYRUN</td><td>NONE</td><td>0</td><td>0</td><td>SKIPPED</td><td>no_session</td><td>0.0</td><td>0</td></tr>
+
+    </tbody>
+  </table>
+</div>
+</body></html>

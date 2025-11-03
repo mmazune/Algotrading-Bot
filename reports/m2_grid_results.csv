@@ -1,0 +1,16 @@
+strategy,params_json,pf,win,avgR,ddR,totalR,trades
+price_action_breakout,"{""lookback"": 12, ""buffer_pips"": 0.5, ""min_break_pips"": 3, ""min_atr_pips"": 2, ""use_htf_filter"": false}",0.0,0.0,0.0,0.0,0.0,0
+price_action_breakout,"{""lookback"": 20, ""buffer_pips"": 0.5, ""min_break_pips"": 3, ""min_atr_pips"": 2, ""use_htf_filter"": false}",0.0,0.0,0.0,0.0,0.0,0
+price_action_breakout,"{""lookback"": 15, ""buffer_pips"": 0.8, ""min_break_pips"": 4, ""min_atr_pips"": 2, ""use_htf_filter"": false}",0.0,0.0,0.0,0.0,0.0,0
+price_action_breakout,"{""lookback"": 15, ""buffer_pips"": 0.5, ""min_break_pips"": 3, ""min_atr_pips"": 2, ""use_htf_filter"": false}",0.0,0.0,0.0,0.0,0.0,0
+price_action_breakout,"{""lookback"": 18, ""buffer_pips"": 0.6, ""min_break_pips"": 3, ""min_atr_pips"": 2, ""use_htf_filter"": false}",0.0,0.0,0.0,0.0,0.0,0
+ema_trend,"{""fast"": 10, ""slow"": 30, ""pullback"": 4, ""slope_pips"": 3.0}",1.1785714285714264,46.15384615384615,0.09615384615384492,2.0,1.249999999999984,13
+ema_trend,"{""fast"": 12, ""slow"": 35, ""pullback"": 4, ""slope_pips"": 3.0}",0.5499999999999735,28.57142857142857,-0.3214285714285903,3.6250000000000235,-2.2500000000001323,7
+ema_trend,"{""fast"": 15, ""slow"": 40, ""pullback"": 5, ""slope_pips"": 3.5}",0.0,0.0,-1.0,0.0,-1.0,1
+ema_trend,"{""fast"": 8, ""slow"": 25, ""pullback"": 3, ""slope_pips"": 2.5}",0.611111111111156,30.76923076923077,-0.26923076923073813,4.874999999999622,-3.499999999999596,13
+ema_trend,"{""fast"": 10, ""slow"": 28, ""pullback"": 4, ""slope_pips"": 3.0}",1.1785714285714264,46.15384615384615,0.09615384615384491,2.0,1.2499999999999838,13
+bollinger_mean_rev,"{""n"": 20, ""k"": 2.0}",0.9307515882769724,48.93617021276596,-0.035360891092609814,15.187382863826478,-3.3239237627053226,94
+bollinger_mean_rev,"{""n"": 18, ""k"": 2.0}",0.77958427723968,44.73684210526316,-0.121808688893861,15.537350285179132,-9.257460355933436,76
+bollinger_mean_rev,"{""n"": 22, ""k"": 2.2}",0.8871932144046611,43.39622641509434,-0.06385289750679553,10.524941690019014,-3.384203567860163,53
+bollinger_mean_rev,"{""n"": 20, ""k"": 1.8}",1.0178948657937508,51.93798449612403,0.008600633172190496,17.988462375243135,1.109481679212574,129
+bollinger_mean_rev,"{""n"": 24, ""k"": 2.0}",1.331009191285712,54.54545454545454,0.15045872331168722,5.883654586603554,13.240367651428475,88

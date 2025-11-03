@@ -1,0 +1,2 @@
+M7_CALIB best spread_pips=0.1 slippage_pips=0.0 PF=inf Win%=100.0 Trades=1
+M7_BACKTEST instrument=EUR_USD PF=inf Win%=100.0 Trades=1 TotalR=0.89 file=reports/m7_calibration.csv

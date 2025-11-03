@@ -1,0 +1,151 @@
+================================================================================
+                   AXFL MILESTONE 5 COMPLETION REPORT
+          Live OANDA Orders + Kill-Switch + Session Windows
+================================================================================
+
+OBJECTIVE
+---------
+Implement live order placement to OANDA with MARKET orders, add kill-switch
+protection (daily R cap, max trades/day), session window filtering, and
+maintain DRYRUN default mode with explicit LIVE_TRADING=1 override.
+
+DELIVERABLES
+------------
+1. OANDA market order placement with SL/TP on-fill
+2. Kill-switch: daily R budget and max trades/day limits
+3. Session windows: UTC trading hours (Mon-Fri)
+4. State persistence across runs (reports/m5_state.json)
+5. Unified live runner with DRYRUN/LIVE modes
+6. Concise success markers for verification
+
+ARCHITECTURE
+------------
+
+1. **OANDA Order Execution** (axfl/brokers/oanda_api.py - EXTENDED)
+   - place_market_order(): MARKET orders with SL/TP on-fill
+   - open_trades(): Query all open positions
+   - close_trade(): Close by trade ID
+   - close_position(): Close by instrument + side (long/short)
+   - Units: positive=BUY, negative=SELL (OANDA v20 convention)
+
+2. **Live Trading Runner** (scripts/live_trade_oanda.py)
+   - Auto-detects OANDA credentials or falls back to SIM
+   - Checks session window (UTC 07:00-12:00 & 13:00-17:00, Mon-Fri)
+   - Enforces kill-switch limits before order placement
+   - Persists daily state to reports/m5_state.json
+   - DRYRUN mode by default (simulates orders without execution)
+   - LIVE mode when LIVE_TRADING=1 env var set
+
+3. **Kill-Switch Protection**
+   - Daily R Budget: Stops trading when |cumulative R| >= daily_stop_R
+   - Max Trades/Day: Stops trading when trades_today >= max_trades_day
+   - Default limits: 4.0 R max, 6 trades max
+   - State resets at midnight UTC
+
+4. **Session Windows**
+   - Trading allowed only during specified UTC hours
+   - Default: 07:00-12:00 & 13:00-17:00 (London + NY overlap)
+   - Weekends blocked (Saturday/Sunday)
+
+CONFIGURATION
+-------------
+Environment Variables:
+- LIVE_TRADING=1 (required for live execution, default: DRYRUN)
+- AXFL_BALANCE (default: 200)
+- AXFL_RISK_PCT (default: 0.01)
+- AXFL_DAILY_STOP_R (default: 4.0)
+- AXFL_MAX_TRADES_DAY (default: 6)
+- OANDA_INSTR (default: EUR_USD)
+
+State File (reports/m5_state.json):
+{
+  "date": "2025-11-03",
+  "trades_today": 1,
+  "day_risk_R": 1.0
+}
+
+SAFETY FEATURES
+---------------
+1. **DRYRUN Default**: Prevents accidental live trading
+2. **Session Filter**: Only trades during defined UTC windows
+3. **Daily R Cap**: Automatic shutdown at loss/trade limits
+4. **State Persistence**: Tracks limits across script runs
+5. **Error Handling**: Graceful fallback on API failures
+
+EXECUTION FLOW
+--------------
+1. Load state file (or initialize fresh)
+2. Check if new trading day → reset counters
+3. Fetch OANDA candles (or synthetic if unavailable)
+4. Check session window (Mon-Fri, UTC hours)
+5. Check kill-switch (R budget, trade count)
+6. Generate signal from strategies (ema_trend, bollinger_mean_rev, price_action_breakout)
+7. If signal + allowed + !kill-switch:
+   - Calculate position size
+   - LIVE mode: Place OANDA order via API
+   - DRYRUN mode: Simulate order placement
+   - Update state counters
+8. Save state file
+9. Print success markers
+
+ORDER PLACEMENT DETAILS
+------------------------
+OANDA v20 API:
+- Endpoint: POST /v3/accounts/{accountId}/orders
+- Order Type: MARKET with FOK (Fill-Or-Kill)
+- Units: positive (BUY), negative (SELL)
+- SL/TP: Attached via stopLossOnFill, takeProfitOnFill
+- Tag: clientExtensions.tag = strategy name
+
+Example Payload:
+{
+  "order": {
+    "units": "-4181",  # negative = SELL
+    "instrument": "EUR_USD",
+    "type": "MARKET",
+    "timeInForce": "FOK",
+    "stopLossOnFill": {"price": "1.16433"},
+    "takeProfitOnFill": {"price": "1.16306"},
+    "clientExtensions": {"tag": "bollinger_mean_rev"}
+  }
+}
+
+SUCCESS MARKERS
+---------------
+1. OANDA_EXEC_READY mode=... trading=... account=... env=... instrument=...
+2. SIGNAL_DECISION strategy=... side=... entry=... sl=... tp=... units=...
+3. ORDER_ACTION action=... orderID=... reason=...
+4. KILL_SWITCH day_total_R=... trades_today=... daily_stop_R=... max_trades_day=...
+5. AXFL_M5_OK
+
+FILES CREATED/MODIFIED
+----------------------
+- axfl/brokers/oanda_api.py (EXTENDED: +30 lines for order methods)
+- scripts/live_trade_oanda.py (NEW: 130 lines)
+- progress.json (UPDATED: C5+1, C6+1, D5+1)
+- reports/m5_state.json (NEW: state persistence)
+- reports/m5_explanation.txt (this document)
+- reports/m5_run.log (execution output)
+- reports/m5_progress.txt (progress snapshot)
+
+TESTING MODES
+-------------
+1. **DRYRUN Mode** (default):
+   PYTHONPATH=. python scripts/live_trade_oanda.py
+   → Simulates orders, updates state, no API calls
+
+2. **LIVE Mode** (requires LIVE_TRADING=1):
+   LIVE_TRADING=1 PYTHONPATH=. python scripts/live_trade_oanda.py
+   → Places real orders on OANDA practice/live account
+
+NEXT STEPS
+----------
+M5 establishes live execution infrastructure. Future milestones:
+- M6: Real-time streaming & multi-symbol portfolio
+- M7: Advanced risk (correlation, exposure limits)
+- M8: Production monitoring (health checks, alerts, auto-recovery)
+- M9: Performance analytics (Sharpe, Sortino, Monte Carlo)
+
+================================================================================
+                            AXFL MILESTONE 5 COMPLETE
+================================================================================

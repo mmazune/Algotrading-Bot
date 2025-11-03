@@ -1,0 +1,5 @@
+/workspaces/Algotrading-Bot/scripts/session_scheduler.py:4: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
+SCHEDULER_READY interval=5m next_tick=2025-11-03T02:50:00Z
+SPREAD_MODEL spread_pips=0.2 slippage_pips=0.1
+DASHBOARD_READY path=reports/m6_dashboard.html entries=1

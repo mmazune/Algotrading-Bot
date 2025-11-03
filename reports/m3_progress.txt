@@ -1,0 +1,2 @@
+Coding: 50.0%   Deployment: 15.0%   Project Total: 32.5%
+Coding: 70.0%   Deployment: 30.0%   Project Total: 50.0%

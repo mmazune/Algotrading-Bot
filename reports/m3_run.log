@@ -1,0 +1,24 @@
+Coding: 50.0%   Deployment: 15.0%   Project Total: 32.5%
+[INFO] Generated 1500 bars of EUR/USD synthetic data
+[INFO] Running lsg...
+ENGINE_READY
+SIM_SUMMARY: lsg | 0 fills | Total R=0.00 | Win%=0.0
+[INFO] Running orb...
+ENGINE_READY
+SIM_SUMMARY: orb | 0 fills | Total R=0.00 | Win%=0.0
+[INFO] Running arls...
+ENGINE_READY
+SIM_SUMMARY: arls | 0 fills | Total R=0.00 | Win%=0.0
+[INFO] Running price_action_breakout...
+ENGINE_READY
+SIM_SUMMARY: price_action_breakout | 0 fills | Total R=0.00 | Win%=0.0
+[INFO] Running ema_trend...
+ENGINE_READY
+FIRST_ORDER
+SIM_SUMMARY: ema_trend | 30 fills | Total R=0.87 | Win%=43.3
+[INFO] Running bollinger_mean_rev...
+ENGINE_READY
+FIRST_ORDER
+SIM_SUMMARY: bollinger_mean_rev | 58 fills | Total R=-7.90 | Win%=31.0
+[INFO] Wrote 88 fills -> reports/m3_trades.csv
+AXFL_M3_OK

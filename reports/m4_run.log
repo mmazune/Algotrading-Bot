@@ -1,0 +1,7 @@
+/workspaces/Algotrading-Bot/axfl/brokers/oanda_api.py:61: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
+  df["time"] = pd.to_datetime(df["time"], utc=True)
+OANDA_READY mode=OANDA account=101-001-37425530-001 env=practice instrument=EUR_USD
+FIRST_ORDER id=1 side=-1 units=4181 entry=1.16385 sl=1.16433 tp=1.16306 tag=bollinger_mean_rev
+RISK_GUARDS risk_pct=1.0% daily_stop_R=4.0 max_open=1 atr_min_pips=3.0
+LIVE_SUMMARY PF=2.24 Win%=66.7 Trades=3 TotalR=1.24 PnL$=2.48
+AXFL_M4_OK

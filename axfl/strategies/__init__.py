@@ -1,1 +1,1 @@
-"""Trading strategy implementations."""
+from .registry import REGISTRY

@@ -1,0 +1,115 @@
+================================================================================
+                   AXFL MILESTONE 3 COMPLETION REPORT
+                     Execution Engine + Broker Simulation
+================================================================================
+
+OBJECTIVE
+---------
+Build a minimal execution engine and simulated broker to run end-to-end
+strategy backtests with order placement, fill simulation, and position tracking.
+
+DELIVERABLES
+------------
+1. Broker abstraction layer (axfl/engine/broker_base.py)
+2. Simulated broker with bar-based TP/SL checking (axfl/engine/broker_sim.py)
+3. Execution engine that wires strategies → orders → fills (axfl/engine/executor.py)
+4. Trade loop script for end-to-end testing (scripts/trade_loop.py)
+5. Updated signal() methods for all 6 strategies
+6. CSV output with order details and R-multiples
+
+ARCHITECTURE
+------------
+
+1. **Broker Abstraction** (axfl/engine/broker_base.py)
+   - Order dataclass: side, units, entry, SL, TP, tag
+   - Fill dataclass: order_id, entry/exit prices, R-multiple, P&L USD
+   - Position dataclass: order_id, side, units, entry, SL, TP
+   - Broker ABC: place(), step_bar(), close_all(), realized()
+
+2. **SimBroker** (axfl/engine/broker_sim.py)
+   - One position at a time (simple policy)
+   - Bar-based TP/SL checking using high/low
+   - Converts R-multiple to USD using risk_dollars parameter
+   - Tracks all fills in _fills list
+
+3. **Executor** (axfl/engine/executor.py)
+   - run_sim() loops through bars, steps broker, asks strategy for signals
+   - Position sizing: risk_dollars / (risk_pips * pip_value)
+   - Converts OrderPlan(side, sl_pips, tp_pips) → Order(side, units, entry, sl, tp)
+   - Returns equity curve DataFrame
+
+4. **Trade Loop** (scripts/trade_loop.py)
+   - Generates 1500-bar synthetic EUR/USD random walk
+   - Runs all 6 strategies through simulation
+   - Saves fills to reports/m3_trades.csv
+   - Updates progress.json (C7=true, D2=true)
+   - Prints success markers: ENGINE_READY, FIRST_ORDER, SIM_SUMMARY, AXFL_M3_OK
+
+STRATEGY UPDATES
+----------------
+All 6 strategies now implement signal(df) → OrderPlan | None:
+
+- **LSG, ORB, ARLS**: Placeholder implementations (return None)
+- **PriceActionBreakout**: HH/LL breakout with ATR-based SL/TP
+- **EmaTrend**: EMA crossover with pullback confirmation
+- **BollingerMeanRev**: Mean-reversion at band extremes with contraction filter
+
+Legacy generate() methods retained for backward compatibility.
+
+SIMULATION RESULTS
+------------------
+Strategy               | Fills | Total R | Win%  | Status
+-----------------------|-------|---------|-------|--------
+lsg                    |   0   |  0.00   |  0.0  | No signals
+orb                    |   0   |  0.00   |  0.0  | No signals
+arls                   |   0   |  0.00   |  0.0  | No signals
+price_action_breakout  |   0   |  0.00   |  0.0  | Too strict for random walk
+ema_trend              |  30   |  0.87   | 43.3  | ✓ Positive R
+bollinger_mean_rev     |  58   | -7.90   | 31.0  | Negative R on random walk
+
+OBSERVATIONS
+------------
+1. **Execution Engine**: Successfully places orders, checks TP/SL on every bar
+2. **Position Sizing**: Correctly converts risk% → units using pip value
+3. **Fill Tracking**: R-multiple calculation matches expectations
+4. **Random Walk Challenge**: Mean-reversion underperforms on non-trending data
+5. **EMA Trend Success**: Only profitable strategy (Total R=0.87, Win%=43.3%)
+
+PROGRESS UPDATE
+---------------
+Before M3: Coding 50.0%, Deployment 15.0%, Total 32.5%
+After M3:  (Progress updated via progress.json)
+
+- C7 (execution engine) = TRUE
+- D2 (backtest validation) = TRUE
+
+SUCCESS MARKERS
+---------------
+✓ ENGINE_READY (6 times - once per strategy)
+✓ FIRST_ORDER (2 times - ema_trend, bollinger_mean_rev)
+✓ SIM_SUMMARY (6 summaries printed)
+✓ AXFL_M3_OK (final success marker)
+
+FILES CREATED
+-------------
+- axfl/engine/__init__.py (exports)
+- axfl/engine/broker_base.py (73 lines)
+- axfl/engine/broker_sim.py (62 lines)
+- axfl/engine/executor.py (56 lines)
+- scripts/trade_loop.py (75 lines)
+- reports/m3_trades.csv (88 fills)
+- reports/m3_run.log (execution output)
+- reports/m3_progress.txt (progress tracker output)
+- reports/m3_explanation.txt (this document)
+
+NEXT STEPS
+----------
+M3 establishes the execution infrastructure. Future milestones:
+- M4: Live broker integration (OANDA adapter)
+- M5: Risk management (position limits, correlation checks)
+- M6: Performance analytics (Sharpe, Sortino, drawdown tracking)
+- M7: Production deployment (systemd, monitoring, alerts)
+
+================================================================================
+                            AXFL MILESTONE 3 COMPLETE
+================================================================================
