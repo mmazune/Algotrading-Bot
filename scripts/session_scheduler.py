@@ -1,5 +1,11 @@
 import os, sys, time, json, math, argparse, subprocess, datetime as dt
 
+try:
+    from axfl.notify.discord import alert_scheduler_start, alert_scheduler_stop
+except Exception:
+    def alert_scheduler_start(*a, **k): return 0
+    def alert_scheduler_stop(*a, **k): return 0
+
 def utc_now():
     return dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
 
@@ -26,7 +32,14 @@ def run_once():
     dash_line = ""
     for ln in (p2.stdout or "").splitlines():
         if ln.startswith("DASHBOARD_READY "): dash_line = ln; break
-    return out, dash_line
+    # 3) M10: Manage open trades
+    p3 = subprocess.run([sys.executable, "scripts/manage_open.py"], capture_output=True, text=True)
+    mg_line = ""
+    for ln in (p3.stdout or "").splitlines():
+        if ln.startswith("M10_MANAGE "): mg_line = ln; break
+    with open("reports/live_roll.log","a") as f:
+        f.write((p3.stdout or "") + "\n")
+    return out, dash_line, mg_line
 
 def main():
     ap = argparse.ArgumentParser()
@@ -36,8 +49,12 @@ def main():
     args = ap.parse_args()
     interval = max(1, args.interval_min)
 
+    # Alert on scheduler start
+    alert_scheduler_start(interval * 60)
+
     if os.path.exists("reports/STOP"):
         print("SCHEDULER_STOPPED reason=STOP_file")
+        alert_scheduler_stop("STOP_file")
         return
 
     nxt = next_tick(interval_min=interval)
@@ -45,7 +62,9 @@ def main():
     if args.daemon:
         while True:
             if os.path.exists("reports/STOP"):
-                print("SCHEDULER_STOPPED reason=STOP_file"); return
+                print("SCHEDULER_STOPPED reason=STOP_file")
+                alert_scheduler_stop("STOP_file")
+                return
             now = utc_now()
             if now >= nxt:
                 run_once()
@@ -53,12 +72,13 @@ def main():
             time.sleep(5)
     else:
         # oneshot run immediately
-        out, dash_line = run_once()
+        out, dash_line, mg_line = run_once()
         # also echo spread/slippage config for visibility
         spread = float(os.environ.get("AXFL_SPREAD_PIPS","0.2"))
         slip = float(os.environ.get("AXFL_SLIPPAGE_PIPS","0.1"))
         print(f"SPREAD_MODEL spread_pips={spread} slippage_pips={slip}")
         if dash_line: print(dash_line)
+        if mg_line: print(mg_line)
 
 if __name__=="__main__":
     main()

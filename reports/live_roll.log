@@ -4,3 +4,11 @@ ORDER_ACTION action=SKIPPED orderID=NA reason=no_session
 KILL_SWITCH day_total_R=0.00 trades_today=0 daily_stop_R=4.0 max_trades_day=6
 AXFL_M5_OK
 
+OANDA_EXEC_READY mode=OANDA trading=DRYRUN account=101-001-37425530-001 env=practice instrument=EUR_USD
+SIGNAL_DECISION strategy=NONE side=0 entry=NA sl=NA tp=NA units=0
+ORDER_ACTION action=SKIPPED orderID=NA reason=adr_guard
+KILL_SWITCH day_total_R=0.00 trades_today=0 daily_stop_R=4.0 max_trades_day=6 adr14=29.5 adr_min=40.0
+AXFL_M5_OK
+
+M10_MANAGE mode=OANDA actions=0 would_close=0 open=0 closed=0
+

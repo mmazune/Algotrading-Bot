@@ -1,0 +1,2 @@
+M9_TUNE session_breakout best PF=0.76 Win%=37.6 Trades=133 Params={"start_hhmm":0,"end_hhmm":500,"buffer_pips":2.0,"use_dynamic_buffer":true,"dyn_buffer_atr_frac":0.2,"sl_atr":1.4,"tp_atr":2.0}
+M9_TUNE volatility_contraction best PF=0.00 Win%=0.0 Trades=0 Params={"atr_pctile":35.0,"lookback":10,"buffer_pips":1.0,"sl_atr":1.2,"tp_atr":1.8,"min_range_atr_frac":0.4}

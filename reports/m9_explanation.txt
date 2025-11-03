@@ -1,0 +1,5 @@
+- SessionBreakout now uses a dynamic buffer = max(fixed buffer, 0.2 * ATR_pips); still post-session only.
+- VolatilityContraction now ties micro-range to max(min_range_pips, 0.4 * ATR_pips) and slightly relaxes the ATR percentile.
+- Live guards added in live_trade_oanda.py: ADR14 guard, per-strategy daily limit, per-strategy cooldown; state persisted.
+- Real-data tuner scripts/m9_tune_on_oanda.py runs small grids on the latest OANDA CSV.
+- Outputs: reports/m9_tune_results.csv with all trials, markers printed.

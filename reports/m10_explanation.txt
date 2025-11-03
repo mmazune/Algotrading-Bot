@@ -1,0 +1,4 @@
+- Added rule-based live management with breakeven + trailing tiers using safe market close (no order modifications).
+- Ledger stored at reports/m10_ledger.json for restart-safe state.
+- Manager script integrated into the scheduler; emits M10_MANAGE summary each tick.
+- Uses last completed M5 mid bar for decisions; symmetric long/short rules.

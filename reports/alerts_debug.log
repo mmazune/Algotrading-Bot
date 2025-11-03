@@ -1,0 +1,5 @@
+ALERTS_SELFTEST code=403
+TEST_ACCOUNT mode=OANDA balance=99.6800 nav=99.6800 marginAvail=99.6800 currency=USD approx100=OK
+TEST_ORDER_OPEN id=18 side=SHORT units=2000 entry=1.15187 sl=1.15245 tp=1.15135
+TEST_ORDER_CLOSE id=18 exit=1.15200 status=OK
+ALERTS_TEST open=OK close=OK

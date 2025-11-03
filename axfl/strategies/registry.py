@@ -4,6 +4,8 @@ from .adapters.arls import ARLS
 from .price_action_breakout import PriceActionBreakout
 from .ema_trend import EmaTrend
 from .bollinger_mean_rev import BollingerMeanRev
+from .session_breakout import SessionBreakout
+from .vol_contraction import VolatilityContraction
 
 REGISTRY = {
     "lsg": LSG,
@@ -12,4 +14,6 @@ REGISTRY = {
     "price_action_breakout": PriceActionBreakout,
     "ema_trend": EmaTrend,
     "bollinger_mean_rev": BollingerMeanRev,
+    "session_breakout": SessionBreakout,
+    "volatility_contraction": VolatilityContraction,
 }

@@ -71,10 +71,16 @@ class OandaClient:
     def close_trade(self, trade_id: str) -> Tuple[int, Dict[str, Any]]:
         return self._req("PUT", f"/v3/accounts/{self.account_id}/trades/{trade_id}/close", {"units":"ALL"})
 
+    def close_trade_units(self, trade_id: str, units: str = "ALL") -> Tuple[int, Dict[str, Any]]:
+        return self._req("PUT", f"/v3/accounts/{self.account_id}/trades/{trade_id}/close", {"units": units})
+
     def close_position(self, instrument: str, side: str) -> Tuple[int, Dict[str, Any]]:
         # side in {"long","short"}
         payload = {"longUnits":"ALL"} if side=="long" else {"shortUnits":"ALL"}
         return self._req("PUT", f"/v3/accounts/{self.account_id}/positions/{instrument}/close", payload)
+
+    def latest_m5(self, instrument: str = "EUR_USD") -> tuple[int, dict]:
+        return self._req("GET", f"/v3/instruments/{instrument}/candles?granularity=M5&count=2&price=M")
 
 def _parse_oanda_candles(payload: Dict[str, Any], granularity: str) -> pd.DataFrame:
     c = payload.get("candles", [])

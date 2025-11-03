@@ -1,0 +1,5 @@
+M8 price_action_breakout best PF=0.00 Win%=0.0 Trades=0 Params={"lookback": 12, "buffer_pips": 0.5, "min_break_pips": 3, "min_atr_pips": 2, "use_htf_filter": false}
+M8 ema_trend best PF=1.18 Win%=46.2 Trades=13 Params={"fast": 10, "slow": 30, "pullback": 4, "slope_pips": 3.0}
+M8 bollinger_mean_rev best PF=1.33 Win%=54.5 Trades=88 Params={"n": 24, "k": 2.0}
+M8 session_breakout best PF=0.46 Win%=24.2 Trades=458 Params={"start_hhmm": "0000", "end_hhmm": "0500", "buffer_pips": 1.5, "atr_sl": 1.4, "atr_tp": 2.0, "min_range_pips": 6.0}
+M8 volatility_contraction best PF=0.00 Win%=0.0 Trades=0 Params={"percentile": 30, "lookback": 10, "buffer_pips": 1.0, "atr_sl": 1.2, "atr_tp": 1.8, "min_range_pips": 4.0}

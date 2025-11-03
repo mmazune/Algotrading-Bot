@@ -7,6 +7,8 @@ sys.path.append(".")
 from axfl.strategies.price_action_breakout import PriceActionBreakout
 from axfl.strategies.ema_trend import EmaTrend
 from axfl.strategies.bollinger_mean_rev import BollingerMeanRev
+from axfl.strategies.session_breakout import SessionBreakout
+from axfl.strategies.vol_contraction import VolatilityContraction
 
 PIP = 0.0001
 
@@ -87,6 +89,14 @@ def main():
             {"n":20,"k":1.8},
             {"n":24,"k":2.0},
         ],
+        "session_breakout": [
+            {"start_hhmm":"0000","end_hhmm":"0500","buffer_pips":1.5,"atr_sl":1.4,"atr_tp":2.0,"min_range_pips":6.0},
+            {"start_hhmm":"0600","end_hhmm":"0800","buffer_pips":1.2,"atr_sl":1.3,"atr_tp":1.9,"min_range_pips":5.0},
+        ],
+        "volatility_contraction": [
+            {"percentile":30,"lookback":10,"buffer_pips":1.0,"atr_sl":1.2,"atr_tp":1.8,"min_range_pips":4.0},
+            {"percentile":25,"lookback":12,"buffer_pips":1.2,"atr_sl":1.3,"atr_tp":2.0,"min_range_pips":4.5},
+        ],
     }
     
     results = []
@@ -101,6 +111,10 @@ def main():
                 strat = EmaTrend(**params)
             elif strat_name == "bollinger_mean_rev":
                 strat = BollingerMeanRev(**params)
+            elif strat_name == "session_breakout":
+                strat = SessionBreakout(**params)
+            elif strat_name == "volatility_contraction":
+                strat = VolatilityContraction(**params)
             else:
                 continue
             
@@ -135,15 +149,15 @@ def main():
     
     # Write CSV
     os.makedirs("reports", exist_ok=True)
-    with open("reports/m2_grid_results.csv", "w", newline="") as f:
+    with open("reports/m8_grid_results.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["strategy","params_json","pf","win","avgR","ddR","totalR","trades"])
         writer.writeheader()
         writer.writerows(results)
     
     # Print best per strategy
-    for strat_name in ["price_action_breakout", "ema_trend", "bollinger_mean_rev"]:
+    for strat_name in ["price_action_breakout", "ema_trend", "bollinger_mean_rev", "session_breakout", "volatility_contraction"]:
         res, params = best_per_strategy[strat_name]
-        print(f"M2 {strat_name} best PF={res['pf']:.2f} Win%={res['win']:.1f} Trades={res['n']} Params={json.dumps(params)}")
+        print(f"M8 {strat_name} best PF={res['pf']:.2f} Win%={res['win']:.1f} Trades={res['n']} Params={json.dumps(params)}")
     
     return 0
 
