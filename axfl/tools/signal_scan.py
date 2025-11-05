@@ -99,7 +99,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not csv_path.exists():
         raise SystemExit(f"CSV not found: {csv_path}")
 
-    bars = _read_csv(csv_path)
+    bars = _read_csv_tolerant(csv_path)
     if not bars:
         raise SystemExit("No rows found in CSV")
 
@@ -120,3 +120,27 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+# --- tolerant CSV reader (appended) ---
+def _read_csv_tolerant(path: Path) -> list[Bar]:
+    """Load bars from CSV. Tolerates header and blank/malformed rows.
+    Expected columns: time,open,high,low,close (time ISO8601)."""
+    with path.open(newline="") as f:
+        r = csv.reader(f)
+        bars: list[Bar] = []
+        for row in r:
+            if not row:
+                continue
+            row = [c.strip() for c in row]
+            # skip header or missing timestamp
+            if not row[0] or row[0].lower() in {"time", "timestamp"}:
+                continue
+            if len(row) < 5:
+                continue
+            ts, o, h, l, c = row[:5]
+            try:
+                t = dt.datetime.fromisoformat(ts)
+                bars.append(Bar(t, float(o), float(h), float(l), float(c)))
+            except Exception:
+                # ignore any malformed row
+                continue
+    return bars
