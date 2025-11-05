@@ -2,9 +2,60 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Any
+import os, json, datetime as dt
 import pandas as pd
 import yaml
 from pathlib import Path
+from axfl.metrics import perf
+from axfl.notify.trades import perf_alert
+
+
+# Performance alert state tracking
+_PERF_STATE = Path("/opt/axfl/app/reports/.perf_state.json")
+
+def _should_send(label: str) -> bool:
+    now = dt.datetime.utcnow()
+    if label=="daily":
+        trigger = now.replace(hour=23, minute=59, second=0, microsecond=0)
+    elif label=="weekly":
+        dow = now.weekday()
+        days_to_sun = (6 - dow) % 7
+        trigger = (now + dt.timedelta(days=days_to_sun)).replace(hour=23, minute=59, second=0, microsecond=0)
+    elif label=="monthly":
+        next_month = (now.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+        last_day = next_month - dt.timedelta(days=1)
+        trigger = last_day.replace(hour=23, minute=59, second=0, microsecond=0)
+    else:
+        return False
+    try:
+        sent = json.loads(_PERF_STATE.read_text())
+    except Exception:
+        sent = {}
+    key = label + "_" + trigger.strftime("%Y%m%d")
+    if sent.get(key):
+        return False
+    return now >= trigger and (now - trigger) <= dt.timedelta(minutes=5)
+
+def _mark_sent(label: str) -> None:
+    now = dt.datetime.utcnow()
+    if label=="daily":
+        k = "daily_" + now.strftime("%Y%m%d")
+    elif label=="weekly":
+        dow = now.weekday()
+        days_to_sun = (6 - dow) % 7
+        sunday = (now + dt.timedelta(days=days_to_sun))
+        k = "weekly_" + sunday.strftime("%Y%m%d")
+    else:
+        k = "monthly_" + now.strftime("%Y%m")
+    try:
+        state = {}
+        if _PERF_STATE.exists():
+            state = json.loads(_PERF_STATE.read_text() or "{}")
+        state[k] = True
+        _PERF_STATE.parent.mkdir(parents=True, exist_ok=True)
+        _PERF_STATE.write_text(json.dumps(state))
+    except Exception:
+        pass
 
 
 @dataclass
@@ -161,3 +212,18 @@ def normalize_schedule(cfg: Dict[str, Any], profile: str = None) -> Dict[str, An
         raise ValueError("Schedule missing required key: 'strategies'")
     
     return result
+
+
+def check_send_performance_alerts() -> None:
+    """
+    Check if it's time to send scheduled performance reports.
+    Call this from your main scheduler loop once per tick.
+    """
+    for label, title in (("daily","DAILY PERFORMANCE"),("weekly","WEEKLY PERFORMANCE"),("monthly","MONTHLY PERFORMANCE")):
+        try:
+            if _should_send(label):
+                totals, strat_rows = perf.compute(label)
+                perf_alert(title, totals=totals, strat_rows=strat_rows)
+                _mark_sent(label)
+        except Exception as e:
+            print(f"PERF_ALERT_ERROR[{label}]:", e)
