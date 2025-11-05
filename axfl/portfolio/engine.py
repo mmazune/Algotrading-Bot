@@ -18,12 +18,13 @@ from ..strategies.lsg import LSGStrategy
 from ..strategies.choch_ob import CHOCHOBStrategy
 from ..strategies.breaker import BreakerStrategy
 from ..config.defaults import resolve_params
-from .scheduler import now_in_any_window, SessionWindow
+from .scheduler import now_in_any_window, SessionWindow, check_send_performance_alerts
 from ..monitor import alerts
 from ..risk.allocator import compute_budgets
 from ..risk.position_sizing import units_from_risk
 from ..risk.vol import inv_vol_weights
 from ..data.symbols import pip_size
+from ..hooks import on_trade_opened, on_trade_closed
 
 # Journal imports
 try:
@@ -612,6 +613,7 @@ class PortfolioEngine:
                 
                 if result['success']:
                     pos['broker_order_id'] = result['order_id']
+                    pos['units'] = units  # Store units for later use in close hook
                     print(f"  ✓ Broker mirror: {result['order_id']} ({units} units, weight={symbol_weight:.2%})")
                     
                     # Write broker order to journal and link
@@ -630,6 +632,33 @@ class PortfolioEngine:
                         )
                         journal.link(axfl_id, result['order_id'])
                         self.mapped_trades += 1
+                    
+                    # Call trade opened hook for Discord notification and SQLite persistence
+                    try:
+                        # Get spread if available
+                        spread_pips = None
+                        if symbol in self.spreads:
+                            spread_pips = self.spreads[symbol]
+                        elif hasattr(self, 'spread_pips'):
+                            spread_pips = self.spread_pips
+                        
+                        opened_at_iso = on_trade_opened(
+                            trade_id=result.get('trade_id') or result['order_id'],
+                            order_id=result['order_id'],
+                            instrument=symbol,
+                            strategy=strategy_name,
+                            side=side,
+                            units=units,
+                            entry=entry,
+                            sl=sl,
+                            tp=pos.get('tp'),
+                            spread_pips=spread_pips,
+                            reason="signal"
+                        )
+                        # Store opened_at_iso for later use in close
+                        pos['opened_at_iso'] = opened_at_iso
+                    except Exception as hook_err:
+                        print(f"  ⚠️  Trade open hook error: {hook_err}")
                 else:
                     print(f"  ⚠️  Broker mirror failed: {result['error']}")
                     if self.journal_enabled:
@@ -646,9 +675,19 @@ class PortfolioEngine:
         broker_order_id = None
         axfl_id = None
         realized_r = 0.0
+        # Store position data needed for close hook
+        pos_side = None
+        pos_units = None
+        pos_entry = None
+        pos_opened_at_iso = None
         if engine.position:
             broker_order_id = engine.position.get('broker_order_id')
             axfl_id = engine.position.get('axfl_id')
+            pos_side = engine.position.get('side')
+            pos_entry = engine.position.get('entry')
+            pos_opened_at_iso = engine.position.get('opened_at_iso')
+            # Try to get units from position if stored
+            pos_units = engine.position.get('units')
         
         # Close in AXFL (source of truth)
         engine._close_position(bar, bar_time, reason, exit_price)
@@ -755,6 +794,44 @@ class PortfolioEngine:
                 result = self.broker.close_all(symbol)
                 if result['success']:
                     print(f"  ✓ Broker close: {symbol}")
+                    
+                    # Call trade closed hook for Discord notification and SQLite persistence
+                    try:
+                        # Get trade data from last_trade if available
+                        if engine.trades:
+                            last_trade = engine.trades[-1]
+                            # Use stored position data or fallback to last_trade
+                            side = pos_side or last_trade.get('side', 'unknown')
+                            entry = pos_entry or last_trade.get('entry', 0.0)
+                            # Units: try position, then estimate from last_trade or use 1000 as fallback
+                            units = pos_units
+                            if units is None:
+                                # Try to estimate from PnL if available
+                                units = 1000  # Default fallback
+                            
+                            # Get opened_at_iso from stored position or generate from entry_time
+                            opened_at = pos_opened_at_iso
+                            if not opened_at:
+                                entry_time = last_trade.get('entry_time', bar_time)
+                                if hasattr(entry_time, 'isoformat'):
+                                    opened_at = entry_time.isoformat()
+                                else:
+                                    opened_at = str(entry_time)
+                            
+                            on_trade_closed(
+                                trade_id=result.get('trade_id') or broker_order_id,
+                                order_id=broker_order_id,
+                                instrument=symbol,
+                                strategy=strategy_name,
+                                side=side,
+                                units=units,
+                                entry=entry,
+                                exit_price=exit_price,
+                                opened_at_iso=opened_at,
+                                reason=reason
+                            )
+                    except Exception as hook_err:
+                        print(f"  ⚠️  Trade close hook error: {hook_err}")
                 else:
                     print(f"  ⚠️  Broker close failed: {result['error']}")
             except Exception as e:
@@ -1011,6 +1088,8 @@ class PortfolioEngine:
             # Status updates
             if time.time() - last_status_time >= self.status_every_s:
                 self._print_status()
+                # Check for scheduled performance alerts
+                check_send_performance_alerts()
                 last_status_time = time.time()
             
             # Fast replay speed
@@ -1108,6 +1187,8 @@ class PortfolioEngine:
                 if time.time() - last_status_time >= self.status_every_s:
                     print(f"[WS] Ticks processed: {tick_count}")
                     self._print_status()
+                    # Check for scheduled performance alerts
+                    check_send_performance_alerts()
                     last_status_time = time.time()
                 
                 # Update WS stats
