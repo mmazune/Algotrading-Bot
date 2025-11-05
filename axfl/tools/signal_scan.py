@@ -14,11 +14,23 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from axfl.data.provider import DataProvider
-from axfl.strategies.lsg import LSGStrategy
-from axfl.strategies.orb import ORBStrategy
-from axfl.strategies.arls import ARLSStrategy
 from axfl.config.defaults import get_strategy_defaults, resolve_params
 from axfl.core.backtester import Backtester
+# --- lazy strategy loader to avoid circular import on module import --- #
+def _load_strategy_classes():
+    from axfl.strategies.ema_trend import EMATrendStrategy
+    from axfl.strategies.bollinger_mean_rev import BollingerMeanRev
+    from axfl.strategies.session_breakout import SessionBreakout
+    from axfl.strategies.price_action_breakout import PriceActionBreakout
+    from axfl.strategies.lsg import LSGStrategy
+    return {
+        "ema_trend": EMATrendStrategy,
+        "bollinger_mean_rev": BollingerMeanRev,
+        "session_breakout": SessionBreakout,
+        "price_action_breakout": PriceActionBreakout,
+        "lsg": LSGStrategy,
+    }
+# --------------------------------------------------------------------- #
 
 
 STRATEGY_MAP = {
