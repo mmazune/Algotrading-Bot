@@ -64,7 +64,7 @@ except ImportError:
 STRATEGY_MAP = {
     'arls': ARLSStrategy,
     'orb': ORBStrategy,
-    'lsg': LSGStrategy,
+    'lsg': 'axfl.strategies.adapters.lsg:LSGStrategy',
     'choch_ob': CHOCHOBStrategy,
     'breaker': BreakerStrategy,
 }
