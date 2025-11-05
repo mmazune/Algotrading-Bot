@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """Portfolio engine for multi-strategy, multi-symbol live trading."""
 
 import json
@@ -14,7 +15,7 @@ from ..live.paper import LivePaperEngine
 from ..core.risk import RiskManager, RiskRules
 from ..strategies.arls import ARLSStrategy
 from ..strategies.orb import ORBStrategy
-from ..strategies.lsg import LSGStrategy
+# (removed) eager import caused circular ref
 from ..strategies.choch_ob import CHOCHOBStrategy
 from ..strategies.breaker import BreakerStrategy
 from ..config.defaults import resolve_params
@@ -1250,3 +1251,6 @@ class PortfolioEngine:
             self.run_ws()
         else:
             raise ValueError(f"Unknown mode: {self.mode}")
+
+if TYPE_CHECKING:
+    from ..strategies.lsg import LSGStrategy  # type: ignore
